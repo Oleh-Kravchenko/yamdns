@@ -54,165 +54,88 @@ mdns_pkt_t* mdns_pkt_parse(const void* buf, size_t len)
 
 	pos += sizeof(mdns_hdr_t);
 
-	res->queries = malloc(sizeof(mdns_query_t) * res->hdr.qd_cnt);
+	/* check for queries */
+	if(res->hdr.qd_cnt) {
+		if(!(res->queries = malloc(sizeof(mdns_query_t) * res->hdr.qd_cnt)))
+			goto err;
 
-	/* parse queries */
-	for(i = 0; i < res->hdr.qd_cnt; ++ i) {
-		const uint8_t* c_name = pos;
+		/* parse queries */
+		for(i = 0; i < res->hdr.qd_cnt; ++ i) {
+			const uint8_t* c_name = pos;
 
-		*res->queries[i].name = 0;
+			*res->queries[i].name = 0;
 
-		/* parse name */
-		while(*c_name) {
-			/* check if name chunk is compressed */
-			if((*c_name & 0xc0) == 0xc0) {
-				/* calculate index of name chunk */
-				c_name = (uint8_t*)buf + (ntohs(*(uint16_t*)c_name) & 0x3fff);
+			/* parse name */
+			while(*c_name) {
+				/* check if name chunk is compressed */
+				if((*c_name & 0xc0) == 0xc0) {
+					/* calculate index of name chunk */
+					c_name = (uint8_t*)buf + (ntohs(*(uint16_t*)c_name) & 0x3fff);
 
-				if(c_name >= pos)
-					puts("Broken packet");
+					if(c_name >= pos)
+						goto err_queries;
+				}
+
+				if(*c_name > 0x3f)
+					goto err_queries;
+
+				char name_chunk[0x40];
+
+				/* safety copying name chunk */
+				memcpy(name_chunk, c_name + 1, *c_name);
+				name_chunk[*c_name] = 0;
+
+				/* next chunk name */
+				c_name += *c_name + 1;
+
+				if(c_name >= end)
+					goto err_queries;
+
+				strncat(res->queries[i].name, name_chunk, sizeof(res->queries[i].name) - 1);
+				res->queries[i].name[sizeof(res->queries[i].name) - 1] = 0;
+
+				strncat(res->queries[i].name, ".", sizeof(res->queries[i].name) - 1);
+				res->queries[i].name[sizeof(res->queries[i].name) - 1] = 0;
 			}
 
-			if(*c_name > 0x3f)
-				puts("Broken packet");
+			/* moving next */
+			if(c_name > pos)
+				/* skip last 'dot' */
+				pos = c_name + 1;
+			else
+				/* name was compressed */
+				pos += 2;
 
-			char name_chunk[0x40];
+			/* process query header */
+			memcpy(&res->queries[i].hdr, pos, sizeof(mdns_query_hdr_t));
+			CONV16_N2H(res->queries[i].hdr.q_class);
+			CONV16_N2H(res->queries[i].hdr.q_type);
 
-			/* safety copying name chunk */
-			memcpy(name_chunk, c_name + 1, *c_name);
-			name_chunk[*c_name] = 0;
-
-			/* next chunk name */
-			c_name += *c_name + 1;
-
-			if(c_name >= end)
-				puts("Broken packet");
-
-			strncat(res->queries[i].name, name_chunk, sizeof(res->queries[i].name) - 1);
-			res->queries[i].name[sizeof(res->queries[i].name) - 1] = 0;
-
-			strncat(res->queries[i].name, ".", sizeof(res->queries[i].name) - 1);
-			res->queries[i].name[sizeof(res->queries[i].name) - 1] = 0;
+			/* moving next */
+			pos += sizeof(mdns_query_hdr_t);
 		}
-
-		if(c_name > pos)
-			pos = c_name + 1;
-		else
-			/* name was compressed */
-			pos += 2;
-
-		memcpy(&res->queries[i].hdr, pos, sizeof(mdns_query_hdr_t));
-
-		/* moving next */
-		pos += sizeof(mdns_query_hdr_t);
 	}
 
-#if 0
+	/* check for answers */
+	if(res->hdr.an_cnt) {
+		if(!(res->answers = malloc(sizeof(mdns_answer_t) * res->hdr.an_cnt)))
+			goto err_queries;
 
-	uint8_t* pkt_cur = recv_pkt + sizeof(mdns_hdr_t);
-	uint8_t* pkt_end = recv_pkt + sizeof(recv_pkt);
-	uint8_t* pkt_name;
-	mdns_query_hdr_t* q;
-
-	for(i = 0; i < ntohs(mdns->qd_cnt); ++ i) {
-		pkt_name = pkt_cur;
-
-		while(*pkt_name && pkt_name < pkt_end) {
-			if((*pkt_name & 0xc0) == 0xc0) {
-				puts("Name compressed!");
-
-				uint16_t p_c = ntohs(*(uint16_t*)pkt_name) & 0x3fff;
-
-				if(recv_pkt + p_c > pkt_cur)
-					puts("Broken packet");
-
-				pkt_name = recv_pkt + p_c;
-			}
-
-			uint8_t name[0x40];
-
-			size_t name_len = *pkt_name & 0x3f;
-
-			memcpy(name, pkt_name + 1, name_len);
-			name[name_len] = 0;
-
-			puts((char*)name);
-
-			pkt_name += *pkt_name + 1;
+		/* parse answers */
+		for(i = 0; i < res->hdr.an_cnt; ++ i) {
+			/* TODO */
 		}
-
-		if(pkt_name > pkt_cur)
-			pkt_cur = ++ pkt_name;
-		else
-			pkt_cur += 2;
-
-		q = (mdns_query_hdr_t*)pkt_cur;
-
-		pkt_cur += sizeof(mdns_query_hdr_t);
-
-		printf("q->qclass 0x%04x\n", ntohs(q->qclass));
-		printf("q->qtype  0x%04x\n", ntohs(q->qtype));
 	}
-#endif
-
-/* parse ok */
-#if 0
-	mdns_hdr_t* mdns = (mdns_hdr_t*)recv_pkt;
-	int i;
-
-	printf("   id: 0x%04x\n", ntohs(mdns->id));
-	printf("flags: 0x%04x\n", ntohs(mdns->flags));
-	printf("   qd: 0x%04x\n", ntohs(mdns->qd_cnt));
-
-	uint8_t* pkt_cur = recv_pkt + sizeof(mdns_hdr_t);
-	uint8_t* pkt_end = recv_pkt + sizeof(recv_pkt);
-	uint8_t* pkt_name;
-	mdns_query_hdr_t* q;
-
-	for(i = 0; i < ntohs(mdns->qd_cnt); ++ i) {
-		pkt_name = pkt_cur;
-
-		while(*pkt_name && pkt_name < pkt_end) {
-			if((*pkt_name & 0xc0) == 0xc0) {
-				puts("Name compressed!");
-
-				uint16_t p_c = ntohs(*(uint16_t*)pkt_name) & 0x3fff;
-
-				if(recv_pkt + p_c > pkt_cur)
-					puts("Broken packet");
-
-				pkt_name = recv_pkt + p_c;
-			}
-
-			uint8_t name[0x40];
-
-			size_t name_len = *pkt_name & 0x3f;
-
-			memcpy(name, pkt_name + 1, name_len);
-			name[name_len] = 0;
-
-			puts((char*)name);
-
-            pkt_name += *pkt_name + 1;
-        }
-
-        if(pkt_name > pkt_cur)
-            pkt_cur = ++ pkt_name;
-        else
-            pkt_cur += 2;
-
-        q = (mdns_query_hdr_t*)pkt_cur;
-
-        pkt_cur += sizeof(mdns_query_hdr_t);
-
-        printf("q->qclass 0x%04x\n", ntohs(q->qclass));
-        printf("q->qtype  0x%04x\n", ntohs(q->qtype));
-    }
-
-    return(exit_code);
-#endif
 
 	return(res);
+
+err_queries:
+	free(res->queries);
+
+err:
+	free(res);
+
+	return(NULL);
 }
 
 /*------------------------------------------------------------------------*/
@@ -232,16 +155,28 @@ void mdns_pkt_dump(mdns_pkt_t* pkt)
 {
 	int i;
 
+	puts("<<");
 	printf("   id: 0x%04x\n", pkt->hdr.id);
 	printf("flags: 0x%04x\n", pkt->hdr.flags);
 	printf("   qd: 0x%04x\n", pkt->hdr.qd_cnt);
+	printf("   an: 0x%04x\n", pkt->hdr.an_cnt);
+	printf("   ns: 0x%04x\n", pkt->hdr.ns_cnt);
+	printf("   ar: 0x%04x\n", pkt->hdr.ar_cnt);
 
-	/* printing queries */
-	for(i = 0; i < pkt->hdr.qd_cnt; ++ i) {
-		printf("type 0x%04x q_class 0x%04x %s\n",
-			pkt->queries[i].hdr.q_type,
-			pkt->queries[i].hdr.q_class,
-			pkt->queries[i].name
-		);
+	if(pkt->hdr.qd_cnt) {
+		printf("queries = %d [\n", pkt->hdr.qd_cnt);
+
+		/* printing queries */
+		for(i = 0; i < pkt->hdr.qd_cnt; ++ i) {
+			printf("\ttype: 0x%04x q_class: 0x%04x name: %s\n",
+				pkt->queries[i].hdr.q_type,
+				pkt->queries[i].hdr.q_class,
+				pkt->queries[i].name
+			);
+		}
+
+		printf("]\n");
 	}
+
+	puts(">>");
 }

@@ -33,6 +33,7 @@ static int exit_code = 1;
 
 /*------------------------------------------------------------------------*/
 
+#if 0
 uint8_t recv_pkt[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x04, 0x63, 0x6f, 0x6d, 0x70, 0x05, 0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x00,
@@ -45,153 +46,82 @@ uint8_t send_pkt[] = {
 	0x00, 0x01, 0x80, 0x01, 0x00, 0x00, 0x00, 0x78, 0x00, 0x04, 0xc0, 0xa8,
 	0x01, 0x6e
 };
+#endif
 
 /*------------------------------------------------------------------------*/
 
 int main(int narg, char** argv)
 {
-	mdns_pkt_t* pkt;
+	uint8_t buf[0x10000];
+	struct sockaddr_in recvaddr;
+	struct sockaddr_in bindaddr;
+	socklen_t recvaddr_len;
+	int sockfd;
+	int res;
 
-	if((pkt = mdns_pkt_parse(recv_pkt, sizeof(recv_pkt)))) {
-		mdns_pkt_dump(pkt);
-
-		mdns_pkt_destroy(pkt);
+	/* create raw socket for ICMP */
+	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+		perror("socket()");
+		return(exit_code);
 	}
 
-	return(exit_code);
+	if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &(struct timeval) {10, 0}, sizeof(struct timeval)) == -1) {
+		perror("setsockopt(SO_RCVTIMEO)");
+		return(exit_code);
+	}
 
-#if 0
-    uint8_t buf[0x10000];
-    struct sockaddr_in recvaddr;
-    struct sockaddr_in bindaddr;
-    socklen_t recvaddr_len;
-    int sockfd;
-    int res;
-    int i;
+	int ttl = 255;
 
-    /* create raw socket for ICMP */
-    if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-        perror("socket()");
-        return(exit_code);
-    }
+	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl)) == -1) {
+		perror("setsockopt(IP_MULTICAST_TTL)");
+		return(exit_code);
+	}
 
-    if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &(struct timeval) {
-    10, 0
-}, sizeof(struct timeval)) == -1) {
-        perror("setsockopt(SO_RCVTIMEO)");
-        return(exit_code);
-    }
+	struct ip_mreq mreq;
 
-    int ttl = 255;
+	inet_aton("224.0.0.251", &mreq.imr_multiaddr);
+	inet_aton("10.7.0.2", &mreq.imr_interface);
 
-    if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl)) == -1) {
-        perror("setsockopt(IP_MULTICAST_TTL)");
-        return(exit_code);
-    }
+	if(setsockopt(sockfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) == -1) {
+		perror("setsockopt(IP_ADD_MEMBERSHIP)");
+		return(exit_code);
+	}
 
-    struct ip_mreq mreq;
+	memset(&bindaddr, 0, sizeof(bindaddr));
+	bindaddr.sin_family = AF_INET;
+	bindaddr.sin_port = htons(5353);
 
-    inet_aton("224.0.0.251", &mreq.imr_multiaddr);
-    inet_aton("192.168.7.1", &mreq.imr_interface);
+	if(bind(sockfd, (struct sockaddr*)&bindaddr, sizeof(bindaddr)) == -1) {
+		perror("bind()");
+		return(exit_code);
+	}
 
-    if(setsockopt(sockfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) == -1) {
-        perror("setsockopt(IP_ADD_MEMBERSHIP)");
-        return(exit_code);
-    }
+	do {
+		recvaddr_len = sizeof(recvaddr);
 
-    memset(&bindaddr, 0, sizeof(bindaddr));
-    bindaddr.sin_family = AF_INET;
-    bindaddr.sin_port = htons(5353);
+		/* receive packet */
+		if((res = recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&recvaddr, &recvaddr_len)) == -1) {
+			if(errno == EAGAIN) {
+				puts("No packets");
+				continue;
+			}
 
-    if(bind(sockfd, (struct sockaddr*)&bindaddr, sizeof(bindaddr)) == -1) {
-        perror("bind()");
-        return(exit_code);
-    }
+			perror("recvfrom()");
+			goto error;
+		}
 
-    do {
-        recvaddr_len = sizeof(recvaddr);
+		mdns_pkt_t* pkt;
 
-        /* receive packet */
-        if((res = recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&recvaddr, &recvaddr_len)) == -1) {
-            if(errno == EAGAIN) {
-                puts("No packets");
-                continue;
-            }
+		if((pkt = mdns_pkt_parse(buf, res))) {
+			mdns_pkt_dump(pkt);
+			mdns_pkt_destroy(pkt);
+		}
+	} while(1);
 
-            perror("recvfrom()");
-            goto error;
-        }
-
-        hexdump8(buf, res);
-
-        mdns_packet_t* mdns = (mdns_packet_t*)buf;
-
-        printf("   id: 0x%04x\n", mdns->id);
-        printf("flags: 0x%04x\n", mdns->flags);
-        printf("   qd: 0x%04x\n\n", ntohs(mdns->qd_cnt));
-
-        uint8_t* qd = buf + sizeof(mdns_packet_t);
-
-        for(i = 0; i < ntohs(mdns->qd_cnt); ++ i) {
-            char path[0x100];
-            int j = 0;
-
-            *path = 0;
-
-            /* check for pointer */
-            if((qd[j] & 0xc0) == 0xc0) {
-                puts("Name compression not yet supported!");
-                printf("%x\n", ntohs((uint16_t)qd[j]));
-                break;
-            }
-
-            /* path */
-            while(qd[j]) {
-                char path_chunk[0x100];
-
-                memcpy(path_chunk, qd + j + 1, qd[j]);
-                path_chunk[qd[j]] = 0;
-
-                if(*path)
-                    strncat(path, ".", sizeof(path));
-                strncat(path, path_chunk, sizeof(path));
-
-                printf("%d:%s\n", qd[j], path_chunk);
-
-                j += qd[j] + 1;
-            }
-
-            printf("--> %s\n", path);
-
-            mdns_question_t* mdns_q = (mdns_question_t*)(qd + j + 1);
-
-            printf("qtype = 0x%04x, qclass = 0x%04x\n", ntohs(mdns_q->qtype), ntohs(mdns_q->qclass));
-
-            qd += j + 1 + sizeof(*mdns_q);
-        }
-
-        printf("\n");
-    } while(0);
-
-
-    uint8_t pkt[] =
-        "\x00\x00\x84\x00\x00\x00\x00\x01\x00\x00\x00\x00\x04\x63\x6f\x6d\x70\x05"
-        "\x6c\x6f\x63\x61\x6c\x00\x00\x01\x80\x01\x00\x00\x00\x78\x00\x04\xc0\xa8"
-        "\x01\x6e";
-
-    struct sockaddr_in sendaddr;
-
-    sendaddr.sin_family = AF_INET;
-    sendaddr.sin_port = htons(5353);
-    inet_aton("224.0.0.251", &sendaddr.sin_addr);
-
-    sendto(sockfd, pkt, sizeof(pkt), 0, (struct sockaddr*)&sendaddr, sizeof(sendaddr));
-
-    exit_code = 0;
+	exit_code = 0;
 
 error:
-    close(sockfd);
+	close(sockfd);
 
-    return(exit_code);
-#endif
+	return(exit_code);
 }

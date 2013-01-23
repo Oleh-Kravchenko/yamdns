@@ -20,6 +20,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <netinet/in.h>
 
 #define MDNS_QUERY_TYPE_A		0x0001
 #define MDNS_QUERY_TYPE_AAAA	0x001c
@@ -30,6 +31,11 @@
 #define MDNS_FLAG_RESPONSE	0
 #define MDNS_FLAG_QUERY		0x8000
 #define MDNS_FLAG_AUTH		0x0400
+
+/*------------------------------------------------------------------------*/
+
+/** max size of dns name including zero byte */
+#define MDNS_MAX_NAME	0x100
 
 /*------------------------------------------------------------------------*/
 
@@ -66,8 +72,34 @@ typedef struct mdns_query_hdr {
 typedef struct mdns_query {
 	mdns_query_hdr_t hdr;
 
-	char name[0x100];
+	char name[MDNS_MAX_NAME];
 } mdns_query_t;
+
+/*------------------------------------------------------------------------*/
+
+typedef struct mdns_answer_hdr {
+	uint16_t a_type;
+
+	uint16_t a_class;
+
+	int32_t a_ttl;
+
+	uint16_t a_data_len;
+} mdns_answer_hdr_t;
+
+/*------------------------------------------------------------------------*/
+
+typedef struct mdns_answer {
+	mdns_answer_hdr_t hdr;
+
+	char name[MDNS_MAX_NAME];
+
+	union {
+		char name[MDNS_MAX_NAME];
+
+		struct in_addr addr;
+	} data;
+} mdns_answer_t;
 
 /*------------------------------------------------------------------------*/
 
@@ -75,6 +107,8 @@ typedef struct mdns_pkt {
 	mdns_hdr_t hdr;
 
 	mdns_query_t* queries;
+
+	mdns_answer_t* answers;
 } mdns_pkt_t;
 
 /*------------------------------------------------------------------------*/
