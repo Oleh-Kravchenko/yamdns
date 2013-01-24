@@ -25,6 +25,57 @@
 /*------------------------------------------------------------------------*/
 
 #define CONV16_N2H(x) do { x = ntohs(x); } while(0);
+#define CONV32_N2H(x) do { x = ntohl(x); } while(0);
+
+/*------------------------------------------------------------------------*/
+
+static const void* mdns_checkout_name(const uint8_t* buf, const uint8_t* pos, const uint8_t* end, char* name, size_t len)
+{
+	const uint8_t* cur = pos;
+	char label[0x40];
+
+	*name = 0;
+
+	/* parse name */
+	while(*cur) {
+		/* check if label is compressed */
+		if((*cur & 0xc0) == 0xc0) {
+			/* calculate index of label */
+			cur = (uint8_t*)buf + (ntohs(*(uint16_t*)cur) & 0x3fff);
+
+			if(cur >= pos)
+				return(NULL);
+		}
+
+		if(*cur > 0x3f)
+			return(NULL);
+
+		/* safety copying label */
+		memcpy(label, cur + 1, *cur);
+		label[*cur] = 0;
+
+		/* next chunk name */
+		cur += *cur + 1;
+
+		if(cur >= end)
+			return(NULL);
+
+		/* add label */
+		strncat(name, label, len - 1);
+		name[len - 1] = 0;
+
+		/* dot */
+		strncat(name, ".", len - 1);
+		name[len - 1] = 0;
+	}
+
+	if(cur > pos)
+		/* skip last 'dot' */
+		return(cur + 1);
+
+	/* name was compressed */
+	return(pos + 2);
+}
 
 /*------------------------------------------------------------------------*/
 
@@ -42,9 +93,13 @@ mdns_pkt_t* mdns_pkt_parse(const void* buf, size_t len)
 	if(!(res = malloc(sizeof(*res))))
 		return(NULL);
 
+	/* initialize pointers */
+	res->queries = NULL;
+	res->answers = NULL;
+
 	memcpy(&res->hdr, buf, sizeof(mdns_hdr_t));
 
-	/* convert fields to host byte order */
+	/* convert header fields to host byte order */
 	CONV16_N2H(res->hdr.id);
 	CONV16_N2H(res->hdr.flags);
 	CONV16_N2H(res->hdr.qd_cnt);
@@ -54,6 +109,10 @@ mdns_pkt_t* mdns_pkt_parse(const void* buf, size_t len)
 
 	pos += sizeof(mdns_hdr_t);
 
+	/* check for range */
+	if(pos >= end)
+		goto err_queries;
+
 	/* check for queries */
 	if(res->hdr.qd_cnt) {
 		if(!(res->queries = malloc(sizeof(mdns_query_t) * res->hdr.qd_cnt)))
@@ -61,50 +120,15 @@ mdns_pkt_t* mdns_pkt_parse(const void* buf, size_t len)
 
 		/* parse queries */
 		for(i = 0; i < res->hdr.qd_cnt; ++ i) {
-			const uint8_t* c_name = pos;
+			pos = mdns_checkout_name(buf, pos, end,
+				res->queries[i].name,
+				sizeof(res->queries[i].name)
+			);
 
-			*res->queries[i].name = 0;
-
-			/* parse name */
-			while(*c_name) {
-				/* check if name chunk is compressed */
-				if((*c_name & 0xc0) == 0xc0) {
-					/* calculate index of name chunk */
-					c_name = (uint8_t*)buf + (ntohs(*(uint16_t*)c_name) & 0x3fff);
-
-					if(c_name >= pos)
-						goto err_queries;
-				}
-
-				if(*c_name > 0x3f)
-					goto err_queries;
-
-				char name_chunk[0x40];
-
-				/* safety copying name chunk */
-				memcpy(name_chunk, c_name + 1, *c_name);
-				name_chunk[*c_name] = 0;
-
-				/* next chunk name */
-				c_name += *c_name + 1;
-
-				if(c_name >= end)
-					goto err_queries;
-
-				strncat(res->queries[i].name, name_chunk, sizeof(res->queries[i].name) - 1);
-				res->queries[i].name[sizeof(res->queries[i].name) - 1] = 0;
-
-				strncat(res->queries[i].name, ".", sizeof(res->queries[i].name) - 1);
-				res->queries[i].name[sizeof(res->queries[i].name) - 1] = 0;
-			}
-
-			/* moving next */
-			if(c_name > pos)
-				/* skip last 'dot' */
-				pos = c_name + 1;
-			else
-				/* name was compressed */
-				pos += 2;
+			/* if failed to checkout name from labels */
+			if(!pos)
+				/* packet is invalid */
+				goto err_queries;
 
 			/* process query header */
 			memcpy(&res->queries[i].hdr, pos, sizeof(mdns_query_hdr_t));
@@ -113,6 +137,10 @@ mdns_pkt_t* mdns_pkt_parse(const void* buf, size_t len)
 
 			/* moving next */
 			pos += sizeof(mdns_query_hdr_t);
+
+			/* check for range */
+			if(pos >= end)
+				goto err_queries;
 		}
 	}
 
@@ -123,11 +151,72 @@ mdns_pkt_t* mdns_pkt_parse(const void* buf, size_t len)
 
 		/* parse answers */
 		for(i = 0; i < res->hdr.an_cnt; ++ i) {
-			/* TODO */
+			pos = mdns_checkout_name(buf, pos, end,
+				res->answers[i].owner,
+				sizeof(res->answers[i].owner)
+			);
+
+			/* if failed to checkout owner from labels */
+			if(!pos)
+				/* packet is invalid */
+				goto err_answers;
+
+			/* process answer header */
+			memcpy(&res->answers[i].hdr, pos, sizeof(mdns_answer_hdr_t));
+			CONV16_N2H(res->answers[i].hdr.a_type);
+			CONV16_N2H(res->answers[i].hdr.a_class);
+			CONV32_N2H(res->answers[i].hdr.a_ttl);
+			CONV16_N2H(res->answers[i].hdr.rd_len);
+
+			/* moving next */
+			pos += sizeof(mdns_answer_hdr_t);
+
+			/* check for range */
+			if(pos >= end)
+				goto err_answers;
+
+			/* parse rdata */
+			switch(res->answers[i].hdr.a_type) {
+				case MDNS_QUERY_TYPE_A:
+					if(sizeof(res->answers[i].rdata.in) != res->answers[i].hdr.rd_len)
+						/* invalid rdata length */
+						goto err_answers;
+
+					memcpy(&res->answers[i].rdata.in, pos, res->answers[i].hdr.rd_len);
+					break;
+
+				case MDNS_QUERY_TYPE_PTR:
+					if(!mdns_checkout_name(
+							buf, pos, end,
+							res->answers[i].rdata.name,
+							sizeof(res->answers[i].rdata.name)
+						)
+					)
+						goto err_answers;
+					break;
+
+				default:
+					if(sizeof(res->answers[i].rdata.raw) < res->answers[i].hdr.rd_len)
+						/* invalid rdata length */
+						goto err_answers;
+
+					memcpy(&res->answers[i].rdata.raw, pos, res->answers[i].hdr.rd_len);
+					break;
+			}
+
+			pos += res->answers[i].hdr.rd_len;
+
+			/* check for range */
+			if(pos > end)
+				goto err_answers;
+
 		}
 	}
 
 	return(res);
+
+err_answers:
+	free(res->answers);
 
 err_queries:
 	free(res->queries);
@@ -145,6 +234,7 @@ void mdns_pkt_destroy(mdns_pkt_t* pkt)
 	if(!pkt)
 		return;
 
+	free(pkt->answers);
 	free(pkt->queries);
 	free(pkt);
 }
@@ -173,6 +263,36 @@ void mdns_pkt_dump(mdns_pkt_t* pkt)
 				pkt->queries[i].hdr.q_class,
 				pkt->queries[i].name
 			);
+		}
+
+		printf("]\n");
+	}
+
+	if(pkt->hdr.an_cnt) {
+		printf("answers = %d [\n", pkt->hdr.an_cnt);
+
+		/* printing queries */
+		for(i = 0; i < pkt->hdr.an_cnt; ++ i) {
+			printf("\ttype: 0x%04x q_class: 0x%04x owner: %s rdata: ",
+				pkt->answers[i].hdr.a_type,
+				pkt->answers[i].hdr.a_class,
+				pkt->answers[i].owner
+			);
+
+			switch(pkt->answers[i].hdr.a_type) {
+				case MDNS_QUERY_TYPE_A:
+					puts(inet_ntoa(pkt->answers[i].rdata.in));
+					break;
+
+				case MDNS_QUERY_TYPE_PTR:
+					puts(pkt->answers[i].rdata.name);
+					break;
+
+				default:
+					strdump(pkt->answers[i].rdata.name, pkt->answers[i].hdr.rd_len);
+					putchar('\n');
+					break;
+			}
 		}
 
 		printf("]\n");

@@ -23,8 +23,8 @@
 #include <netinet/in.h>
 
 #define MDNS_QUERY_TYPE_A		0x0001
-#define MDNS_QUERY_TYPE_AAAA	0x001c
 #define MDNS_QUERY_TYPE_PTR		0x000c
+#define MDNS_QUERY_TYPE_AAAA	0x001c
 
 /*------------------------------------------------------------------------*/
 
@@ -84,21 +84,23 @@ typedef struct mdns_answer_hdr {
 
 	int32_t a_ttl;
 
-	uint16_t a_data_len;
-} mdns_answer_hdr_t;
+	uint16_t rd_len;
+} __attribute__((__packed__)) mdns_answer_hdr_t;
 
 /*------------------------------------------------------------------------*/
 
 typedef struct mdns_answer {
 	mdns_answer_hdr_t hdr;
 
-	char name[MDNS_MAX_NAME];
+	char owner[MDNS_MAX_NAME];
 
 	union {
 		char name[MDNS_MAX_NAME];
 
-		struct in_addr addr;
-	} data;
+		struct in_addr in;
+
+		uint8_t raw[MDNS_MAX_NAME];
+	} rdata;
 } mdns_answer_t;
 
 /*------------------------------------------------------------------------*/
