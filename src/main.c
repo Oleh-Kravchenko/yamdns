@@ -63,7 +63,7 @@ int main(int narg, char** argv)
 	struct ip_mreq mreq;
 
 	inet_aton("224.0.0.251", &mreq.imr_multiaddr);
-	inet_aton("10.2.2.43", &mreq.imr_interface);
+	inet_aton("192.168.1.110", &mreq.imr_interface);
 
 	if(setsockopt(sockfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) == -1) {
 		perror("setsockopt(IP_ADD_MEMBERSHIP)");
@@ -79,8 +79,6 @@ int main(int narg, char** argv)
 		return(exit_code);
 	}
 
-	int k = 20;
-
 	do {
 		recvaddr_len = sizeof(recvaddr);
 
@@ -95,13 +93,15 @@ int main(int narg, char** argv)
 			goto error;
 		}
 
+		puts(inet_ntoa(recvaddr.sin_addr));
+
 		mdns_pkt_t* pkt;
 
 		if((pkt = mdns_pkt_parse(buf, res))) {
 			mdns_pkt_dump(pkt);
 			mdns_pkt_destroy(pkt);
 		}
-	} while(k --);
+	} while(1);
 
 	exit_code = 0;
 

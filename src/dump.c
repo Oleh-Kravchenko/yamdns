@@ -1,4 +1,7 @@
-/* yamdns -- yet another very simple mdns.
+/**
+ * @file dump.c
+ *
+ * yamdns -- yet another very simple mdns.
  * Copyright (C) 2013  Oleh Kravchenko <oleg@kaa.org.ua>
  *
  * This program is free software: you can redistribute it and/or modify

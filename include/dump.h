@@ -1,4 +1,7 @@
-/* yamdns -- yet another very simple mdns.
+/**
+ * @file dump.h
+ *
+ * yamdns -- yet another very simple mdns.
  * Copyright (C) 2013  Oleh Kravchenko <oleg@kaa.org.ua>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -18,20 +21,25 @@
 #ifndef __DUMP_H
 #define __DUMP_H
 
+/**
+ * @brief print pritable characters of buffer
+ * @param [in] str pointer to buffer
+ * @param [in] len length
+ */
 void strdump(const void* str, size_t len);
 
 /**
  * @brief print hexdump
- * @param buf pointer to data
- * @param len length of data
+ * @param [in] buf pointer to data
+ * @param [in] len length of data
  */
 void hexdump8(const void* buf, size_t len);
 
 /**
  * @brief print data like a C array
- * @param name name of C array
- * @param buf pointer to data
- * @param len length of data
+ * @param [in] name name of C array
+ * @param [in] buf pointer to data
+ * @param [in] len length of data
  **/
 void cdump8(const char* name, const void* buf, size_t len);
 
