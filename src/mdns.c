@@ -40,28 +40,29 @@ static const void* mdns_checkout_name(const uint8_t* buf, const uint8_t* pos, co
 	*name = 0;
 
 	/* parse name */
-	while(*cur) {
+	while(*cur && cur < end) {
 		/* check if label is compressed */
 		if((*cur & 0xc0) == 0xc0) {
+			uint16_t index;
+			
 			/* calculate index of label */
-			cur = (uint8_t*)buf + (ntohs(*(uint16_t*)cur) & 0x3fff);
+			index = ntohs(*(uint16_t*)cur) & 0x3fff;
 
-			if(cur >= pos)
+			/* check for invalid index */
+			if(&buf[index] >= cur || &buf[index] >= pos)
 				return(NULL);
+
+			cur = &buf[index];
 		}
 
+		/* check length of label */
 		if(*cur > 0x3f)
+			/* invalid length, failed */
 			return(NULL);
 
 		/* safety copying label */
 		memcpy(label, cur + 1, *cur);
 		label[*cur] = 0;
-
-		/* next chunk name */
-		cur += *cur + 1;
-
-		if(cur >= end)
-			return(NULL);
 
 		/* add label */
 		strncat(name, label, len - 1);
@@ -70,14 +71,25 @@ static const void* mdns_checkout_name(const uint8_t* buf, const uint8_t* pos, co
 		/* dot */
 		strncat(name, ".", len - 1);
 		name[len - 1] = 0;
+
+		/* next chunk name */
+		cur += *cur + 1;
+
+		if(cur > pos)
+			/* save position of parse process */
+			pos = cur;
 	}
 
-	if(cur > pos)
-		/* skip last 'dot' */
-		return(cur + 1);
+	if(cur > end)
+		return(NULL);
 
-	/* name was compressed */
-	return(pos + 2);
+	if(cur < pos)
+		/* name was compressed, skip index (two octets) */
+		return(pos + 2);
+
+	/* skip last 'dot' */
+	return(cur + 1);
+
 }
 
 /*------------------------------------------------------------------------*/
@@ -142,7 +154,7 @@ mdns_pkt_t* mdns_pkt_parse(const void* buf, size_t len)
 			pos += sizeof(mdns_query_hdr_t);
 
 			/* check for range */
-			if(pos >= end)
+			if(pos > end)
 				goto err_queries;
 		}
 	}
@@ -212,7 +224,6 @@ mdns_pkt_t* mdns_pkt_parse(const void* buf, size_t len)
 			/* check for range */
 			if(pos > end)
 				goto err_answers;
-
 		}
 	}
 
@@ -276,10 +287,11 @@ void mdns_pkt_dump(mdns_pkt_t* pkt)
 
 		/* printing queries */
 		for(i = 0; i < pkt->hdr.an_cnt; ++ i) {
-			printf("\ttype: 0x%04x q_class: 0x%04x owner: %s rdata: ",
+			printf("\ttype: 0x%04x q_class: 0x%04x owner: %s rdata(%d): ",
 				pkt->answers[i].hdr.a_type,
 				pkt->answers[i].hdr.a_class,
-				pkt->answers[i].owner
+				pkt->answers[i].owner,
+				pkt->answers[i].hdr.rd_len
 			);
 
 			switch(pkt->answers[i].hdr.a_type) {
