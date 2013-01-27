@@ -85,7 +85,9 @@ int main(int narg, char** argv)
 		/* receive packet */
 		if((res = recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&recvaddr, &recvaddr_len)) == -1) {
 			if(errno == EAGAIN) {
+#if 0
 				puts("No packets");
+#endif
 				continue;
 			}
 
@@ -97,7 +99,7 @@ int main(int narg, char** argv)
 
 		mdns_pkt_t* pkt;
 
-		if((pkt = mdns_pkt_parse(buf, res))) {
+		if((pkt = mdns_pkt_unpack(buf, res))) {
 			mdns_pkt_dump(pkt);
 			mdns_pkt_destroy(pkt);
 		}

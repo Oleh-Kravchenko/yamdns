@@ -28,11 +28,16 @@
 /*------------------------------------------------------------------------*/
 
 #define CONV16_N2H(x) do { x = ntohs(x); } while(0);
+
 #define CONV32_N2H(x) do { x = ntohl(x); } while(0);
+
+#define CONV16_H2N(x) do { x = htons(x); } while(0);
+
+#define CONV32_H2N(x) do { x = htonl(x); } while(0);
 
 /*------------------------------------------------------------------------*/
 
-static const void* mdns_checkout_name(const uint8_t* buf, const uint8_t* pos, const uint8_t* end, char* name, size_t len)
+static const void* mdns_name_unpack(const uint8_t* buf, const uint8_t* pos, const uint8_t* end, char* name, size_t len)
 {
 	const uint8_t* cur = pos;
 	char label[0x40];
@@ -94,7 +99,13 @@ static const void* mdns_checkout_name(const uint8_t* buf, const uint8_t* pos, co
 
 /*------------------------------------------------------------------------*/
 
-mdns_pkt_t* mdns_pkt_parse(const void* buf, size_t len)
+#if 0
+static const void* mdns_name_pack(const uint8_t* buf, const uint8_t* pos, const uint8_t* end, char* name, size_t len);
+#endif /* TODO */
+
+/*------------------------------------------------------------------------*/
+
+mdns_pkt_t* mdns_pkt_unpack(const void* buf, size_t len)
 {
 	const uint8_t* pos = buf;
 	const uint8_t* end = pos + len;
@@ -135,7 +146,7 @@ mdns_pkt_t* mdns_pkt_parse(const void* buf, size_t len)
 
 		/* parse queries */
 		for(i = 0; i < res->hdr.qd_cnt; ++ i) {
-			pos = mdns_checkout_name(buf, pos, end,
+			pos = mdns_name_unpack(buf, pos, end,
 				res->queries[i].name,
 				sizeof(res->queries[i].name)
 			);
@@ -166,7 +177,7 @@ mdns_pkt_t* mdns_pkt_parse(const void* buf, size_t len)
 
 		/* parse answers */
 		for(i = 0; i < res->hdr.an_cnt; ++ i) {
-			pos = mdns_checkout_name(buf, pos, end,
+			pos = mdns_name_unpack(buf, pos, end,
 				res->answers[i].owner,
 				sizeof(res->answers[i].owner)
 			);
@@ -201,7 +212,7 @@ mdns_pkt_t* mdns_pkt_parse(const void* buf, size_t len)
 					break;
 
 				case MDNS_QUERY_TYPE_PTR:
-					if(!mdns_checkout_name(
+					if(!mdns_name_unpack(
 							buf, pos, end,
 							res->answers[i].rdata.name,
 							sizeof(res->answers[i].rdata.name)
@@ -239,6 +250,43 @@ err:
 	free(res);
 
 	return(NULL);
+}
+
+/*------------------------------------------------------------------------*/
+
+int mdns_pkt_pack(mdns_pkt_t* pkt, void* buf, size_t* len)
+{
+	size_t raw_len = sizeof(mdns_hdr_t);
+	mdns_hdr_t* hdr = buf;
+	int i;
+
+	if(*len < raw_len)
+		return(-1);
+
+	/* TODO: not supported */
+	if(hdr->ns_cnt || hdr->ar_cnt)
+		return(-1);
+
+	memcpy(hdr, &pkt->hdr, sizeof(mdns_hdr_t));
+
+	for(i = 0; i < hdr->qd_cnt; ++ i) {
+	}
+
+	for(i = 0; i < hdr->an_cnt; ++ i) {
+	}
+
+	/* convert header fields to network byte order */
+	CONV16_H2N(hdr->id);
+	CONV16_H2N(hdr->flags);
+	CONV16_H2N(hdr->qd_cnt);
+	CONV16_H2N(hdr->an_cnt);
+	CONV16_H2N(hdr->ns_cnt);
+	CONV16_H2N(hdr->ar_cnt);
+
+	/* packed length of packet */
+	*len = raw_len;
+
+	return(0);
 }
 
 /*------------------------------------------------------------------------*/

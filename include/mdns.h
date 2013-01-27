@@ -63,7 +63,7 @@ typedef struct mdns_hdr {
 
 	/** must be zero */
 	uint16_t ar_cnt;
-} __attribute__((__packed__)) mdns_hdr_t ;
+} __attribute__((__packed__)) mdns_hdr_t;
 
 /*------------------------------------------------------------------------*/
 
@@ -149,7 +149,16 @@ typedef struct mdns_pkt {
  * @param [in] len length of buffer
  * @return NULL if parser failed.
  */
-mdns_pkt_t* mdns_pkt_parse(const void* buf, size_t len);
+mdns_pkt_t* mdns_pkt_unpack(const void* buf, size_t len);
+
+/**
+ * @brief pack mDNS packet into raw packet
+ * @param [in] pkt packet
+ * @param [in,out] buf buffer for raw packet
+ * @param [in,out] len maximum length of buffer
+ * @return zero if successful
+ */
+int mdns_pkt_pack(mdns_pkt_t* pkt, void* buf, size_t* len);
 
 /**
  * @brief free resource of mDNS packet
