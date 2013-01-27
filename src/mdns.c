@@ -320,7 +320,7 @@ void mdns_pkt_dump(mdns_pkt_t* pkt)
 
 		/* printing queries */
 		for(i = 0; i < pkt->hdr.qd_cnt; ++ i) {
-			printf("\ttype: 0x%04x q_class: 0x%04x name: %s\n",
+			printf("\ttype: 0x%04x class: 0x%04x name: %s\n",
 				pkt->queries[i].hdr.q_type,
 				pkt->queries[i].hdr.q_class,
 				pkt->queries[i].name
@@ -333,11 +333,12 @@ void mdns_pkt_dump(mdns_pkt_t* pkt)
 	if(pkt->hdr.an_cnt) {
 		printf("answers = %d [\n", pkt->hdr.an_cnt);
 
-		/* printing queries */
+		/* printing answers */
 		for(i = 0; i < pkt->hdr.an_cnt; ++ i) {
-			printf("\ttype: 0x%04x q_class: 0x%04x owner: %s rdata(%d): ",
+			printf("\ttype: 0x%04x class: 0x%04x ttl: %d owner: %s rdata(%d): ",
 				pkt->answers[i].hdr.a_type,
 				pkt->answers[i].hdr.a_class,
+				pkt->answers[i].hdr.a_ttl,
 				pkt->answers[i].owner,
 				pkt->answers[i].hdr.rd_len
 			);
