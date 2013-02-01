@@ -99,9 +99,47 @@ static const void* mdns_name_unpack(const uint8_t* buf, const uint8_t* pos, cons
 
 /*------------------------------------------------------------------------*/
 
-#if 0
-static const void* mdns_name_pack(const uint8_t* buf, const uint8_t* pos, const uint8_t* end, char* name, size_t len);
-#endif /* TODO */
+static void* mdns_name_pack(void* buf, size_t len, const char* name)
+{
+	uint8_t* pos = buf;
+	const char* label;
+
+	/* check for buffer length */
+	if(strlen(name) + 1 > len)
+		return(NULL);
+
+	while((label = strchr(name, '.'))) {
+		/* put label length */
+		*pos = label - name;
+
+		/* put label */
+		memcpy(pos + 1, name, *pos);
+
+		/* moving next */
+		name = label + 1;
+		pos += *pos + 1;
+	}
+
+	/* terminate packed name by 0 */
+	*pos ++ = 0;
+
+	return(pos);
+}
+
+/*------------------------------------------------------------------------*/
+
+mdns_pkt_t* mdns_pkt_init(void)
+{
+	mdns_pkt_t* res;
+
+	if(!(res = malloc(sizeof(*res))))
+		return(NULL);
+
+	/* initialize by 0 */
+	memset(res, 0, sizeof(*res));
+
+	return(res);
+}
 
 /*------------------------------------------------------------------------*/
 
@@ -254,26 +292,22 @@ err:
 
 /*------------------------------------------------------------------------*/
 
-int mdns_pkt_pack(mdns_pkt_t* pkt, void* buf, size_t* len)
+int mdns_pkt_pack(mdns_pkt_t* pkt, void* buf, size_t len)
 {
-	size_t raw_len = sizeof(mdns_hdr_t);
 	mdns_hdr_t* hdr = buf;
+	mdns_query_hdr_t* q_hdr;
+	mdns_answer_hdr_t* a_hdr;
+	uint8_t* pos = buf;
 	int i;
 
-	if(*len < raw_len)
+	if(len < sizeof(mdns_hdr_t))
 		return(-1);
 
 	/* TODO: not supported */
-	if(hdr->ns_cnt || hdr->ar_cnt)
+	if(pkt->hdr.ns_cnt || pkt->hdr.ar_cnt)
 		return(-1);
 
 	memcpy(hdr, &pkt->hdr, sizeof(mdns_hdr_t));
-
-	for(i = 0; i < hdr->qd_cnt; ++ i) {
-	}
-
-	for(i = 0; i < hdr->an_cnt; ++ i) {
-	}
 
 	/* convert header fields to network byte order */
 	CONV16_H2N(hdr->id);
@@ -283,10 +317,38 @@ int mdns_pkt_pack(mdns_pkt_t* pkt, void* buf, size_t* len)
 	CONV16_H2N(hdr->ns_cnt);
 	CONV16_H2N(hdr->ar_cnt);
 
-	/* packed length of packet */
-	*len = raw_len;
+	pos += sizeof(mdns_hdr_t);
 
-	return(0);
+	for(i = 0; i < pkt->hdr.qd_cnt; ++ i) {
+		if(!(q_hdr = mdns_name_pack(pos, len - (size_t)pos - (size_t)buf, pkt->queries[i].name)))
+			return(0);
+
+		memcpy(q_hdr, &pkt->queries[i].hdr, sizeof(mdns_query_hdr_t));
+		CONV16_H2N(q_hdr->q_class);
+		CONV16_H2N(q_hdr->q_type);
+
+		pos = (uint8_t*)(q_hdr + 1);
+	}
+
+	for(i = 0; i < pkt->hdr.an_cnt; ++ i) {
+		if(!(a_hdr = mdns_name_pack(pos, len - (size_t)pos - (size_t)buf, pkt->answers[i].owner)))
+			return(0);
+
+		memcpy(a_hdr, &pkt->answers[i].hdr, sizeof(mdns_answer_hdr_t));
+		CONV16_N2H(a_hdr->a_type);
+		CONV16_N2H(a_hdr->a_class);
+		CONV32_N2H(a_hdr->a_ttl);
+		CONV16_N2H(a_hdr->rd_len);
+
+		pos = (uint8_t*)(a_hdr + 1);
+
+		memcpy(pos, &pkt->answers[i].rdata.raw, pkt->answers[i].hdr.rd_len);
+
+		pos += pkt->answers[i].hdr.rd_len;
+	}
+
+	/* packed length of packet */
+	return((size_t)pos - (size_t)buf);
 }
 
 /*------------------------------------------------------------------------*/
@@ -363,4 +425,96 @@ void mdns_pkt_dump(mdns_pkt_t* pkt)
 	}
 
 	puts(">>");
+}
+
+/*------------------------------------------------------------------------*/
+
+int mdns_pkt_add_query_in(mdns_pkt_t* pkt, uint16_t q_type, const char* name)
+{
+	mdns_query_t* q;
+
+	if(!(q = realloc(pkt->queries, (pkt->hdr.qd_cnt + 1) * sizeof(*q))))
+		return(-1);
+
+	pkt->queries = q;
+
+	/* receiving pointer to added item */
+	q = pkt->queries + pkt->hdr.qd_cnt;
+
+	/* query header */
+	q->hdr.q_type = q_type;
+	q->hdr.q_class = 1;
+
+	/* query name */
+	strncpy(q->name, name, sizeof(q->name) - 1);
+	q->name[sizeof(q->name) - 1] = 0;
+
+	++ pkt->hdr.qd_cnt;
+
+	return(0);
+}
+
+/*------------------------------------------------------------------------*/
+
+int mdns_pkt_add_answer_in(mdns_pkt_t* pkt, int32_t ttl, const char* owner, struct in_addr* in)
+{
+	mdns_answer_t* a;
+
+	if(!(a = realloc(pkt->answers, (pkt->hdr.an_cnt + 1) * sizeof(*a))))
+		return(-1);
+
+	pkt->answers = a;
+
+	/* receiving pointer to added item */
+	a = pkt->answers + pkt->hdr.an_cnt;
+
+	/* answer header */
+	a->hdr.a_type = MDNS_QUERY_TYPE_A;
+	a->hdr.a_class = 1;
+	a->hdr.a_ttl = ttl;
+	a->hdr.rd_len = sizeof(*in);
+
+	/* answer inet address */
+	a->rdata.in.s_addr = in->s_addr;
+
+	/* owner */
+	strncpy(a->owner, owner, sizeof(a->owner) - 1);
+	a->owner[sizeof(a->owner) - 1] = 0;
+
+	++ pkt->hdr.an_cnt;
+
+	return(0);
+}
+
+/*------------------------------------------------------------------------*/
+
+int mdns_pkt_add_answer_name(mdns_pkt_t* pkt, int32_t ttl, const char* owner, const char* name)
+{
+	mdns_answer_t* a;
+
+	if(!(a = realloc(pkt->answers, (pkt->hdr.an_cnt + 1) * sizeof(*a))))
+		return(-1);
+
+	pkt->answers = a;
+
+	/* receiving pointer to added item */
+	a = pkt->answers + pkt->hdr.an_cnt;
+
+	/* answer header */
+	a->hdr.a_type = MDNS_QUERY_TYPE_PTR;
+	a->hdr.a_class = 1;
+	a->hdr.a_ttl = ttl;
+	a->hdr.rd_len = strlen(name) + 1;
+
+	/* answer name */
+	strncpy(a->rdata.name, name, sizeof(a->rdata.name) - 1);
+	a->rdata.name[sizeof(a->rdata.name) - 1] = 0;
+
+	/* owner */
+	strncpy(a->owner, owner, sizeof(a->owner) - 1);
+	a->owner[sizeof(a->owner) - 1] = 0;
+
+	++ pkt->hdr.an_cnt;
+
+	return(0);
 }

@@ -143,6 +143,15 @@ typedef struct mdns_pkt {
 
 /*------------------------------------------------------------------------*/
 
+/** create empty mdns packet */
+mdns_pkt_t* mdns_pkt_init(void);
+
+/**
+ * @brief free resource of mDNS packet
+ * @param [in] pkt mDNS packet, can be NULL
+ */
+void mdns_pkt_destroy(mdns_pkt_t* pkt);
+
 /**
  * @brief parse raw mDNS packet
  * @param [in] buf buffer
@@ -158,18 +167,18 @@ mdns_pkt_t* mdns_pkt_unpack(const void* buf, size_t len);
  * @param [in,out] len maximum length of buffer
  * @return zero if successful
  */
-int mdns_pkt_pack(mdns_pkt_t* pkt, void* buf, size_t* len);
-
-/**
- * @brief free resource of mDNS packet
- * @param [in] pkt mDNS packet, can be NULL
- */
-void mdns_pkt_destroy(mdns_pkt_t* pkt);
+int mdns_pkt_pack(mdns_pkt_t* pkt, void* buf, size_t len);
 
 /**
  * @brief dump mdns packet
  * @param [in] pkt mDNS packet
  */
 void mdns_pkt_dump(mdns_pkt_t* pkt);
+
+int mdns_pkt_add_answer_in(mdns_pkt_t* pkt, int32_t ttl, const char* owner, struct in_addr* in);
+
+int mdns_pkt_add_answer_name(mdns_pkt_t* pkt, int32_t ttl, const char* owner, const char* name);
+
+int mdns_pkt_add_query_in(mdns_pkt_t* pkt, uint16_t q_type, const char* name);
 
 #endif /* __YAMDNS_H */

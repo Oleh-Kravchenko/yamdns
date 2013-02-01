@@ -35,12 +35,15 @@ static int exit_code = 1;
 
 int main(int narg, char** argv)
 {
-	uint8_t buf[0x10000];
 	struct sockaddr_in recvaddr;
 	struct sockaddr_in bindaddr;
 	socklen_t recvaddr_len;
+	uint8_t buf[0x10000];
+	mdns_pkt_t* pkt;
+	size_t len;
 	int sockfd;
-	int res;
+	int answer;
+	int res, i;
 
 	/* create raw socket for ICMP */
 	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
@@ -63,7 +66,7 @@ int main(int narg, char** argv)
 	struct ip_mreq mreq;
 
 	inet_aton("224.0.0.251", &mreq.imr_multiaddr);
-	inet_aton("192.168.1.110", &mreq.imr_interface);
+	inet_aton("10.7.0.2", &mreq.imr_interface);
 
 	if(setsockopt(sockfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) == -1) {
 		perror("setsockopt(IP_ADD_MEMBERSHIP)");
@@ -97,10 +100,36 @@ int main(int narg, char** argv)
 
 		puts(inet_ntoa(recvaddr.sin_addr));
 
-		mdns_pkt_t* pkt;
+		if(!(pkt = mdns_pkt_unpack(buf, res)))
+			continue;
 
-		if((pkt = mdns_pkt_unpack(buf, res))) {
-			mdns_pkt_dump(pkt);
+		answer = 0;
+
+		mdns_pkt_dump(pkt);
+
+		for(i = 0; i < pkt->hdr.qd_cnt; ++ i) {
+			printf("--> %s : %d\n", pkt->queries[i].name, strcmp(pkt->queries[i].name, "comp.local."));
+			if(!strcmp(pkt->queries[i].name, "comp.local.")) {
+				answer = 1;
+				break;
+			}
+		}
+
+		mdns_pkt_destroy(pkt);
+
+		if(answer) {
+			/*memset(&recvaddr, 0, sizeof(recvaddr));
+			inet_aton("224.0.0.251", &recvaddr.sin_addr);
+			recvaddr.sin_family = AF_INET;
+			recvaddr.sin_port = htons(5353);*/
+
+			pkt = mdns_pkt_init();
+			pkt->hdr.flags = MDNS_FLAG_QUERY | MDNS_FLAG_AUTH;
+
+			mdns_pkt_add_answer_in(pkt, 120, "comp.local.", &mreq.imr_interface);
+			len = mdns_pkt_pack(pkt, buf, sizeof(buf));
+			sendto(sockfd, buf, len, 0, (struct sockaddr *)&recvaddr, sizeof(recvaddr));
+			perror("sendto");
 			mdns_pkt_destroy(pkt);
 		}
 	} while(1);
