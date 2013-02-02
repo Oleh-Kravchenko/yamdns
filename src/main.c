@@ -45,31 +45,32 @@ int main(int narg, char** argv)
 	int answer;
 	int res, i;
 
-	/* create raw socket for ICMP */
-	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-		perror("socket()");
-		return(exit_code);
-	}
-
-	if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &(struct timeval) {10, 0}, sizeof(struct timeval)) == -1) {
-		perror("setsockopt(SO_RCVTIMEO)");
-		return(exit_code);
-	}
-
-	int ttl = 255;
-
-	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl)) == -1) {
-		perror("setsockopt(IP_MULTICAST_TTL)");
-		return(exit_code);
-	}
-
 	struct ip_mreq mreq;
 
-	inet_aton("224.0.0.251", &mreq.imr_multiaddr);
-	inet_aton("10.7.0.2", &mreq.imr_interface);
+	if(narg != 2) {
+		puts("Interface not specificaited");
+		return(1);
+	}
 
-	if(setsockopt(sockfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) == -1) {
-		perror("setsockopt(IP_ADD_MEMBERSHIP)");
+	/* mDNS multicasting address */
+	inet_aton("224.0.0.251", &mreq.imr_multiaddr);
+
+	/* interface address validation */
+	if(!inet_aton(argv[1], &mreq.imr_interface)) {
+		struct hostent* host = gethostbyname(argv[1]);
+
+		if(!host) {
+			printf("%s: unknown interface %s\n", argv[0], argv[1]);
+
+			return(exit_code);
+		}
+
+		mreq.imr_interface = *((struct in_addr*)host->h_addr);
+	}
+
+	/* create UDP socket for multicasting */
+	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+		perror("socket()");
 		return(exit_code);
 	}
 
@@ -82,23 +83,42 @@ int main(int narg, char** argv)
 		return(exit_code);
 	}
 
+	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_LOOP, &(uint8_t){0}, sizeof(uint8_t)) == -1) {
+		perror("setsockopt(IP_MULTICAST_LOOP)");
+		return(exit_code);
+	}
+
+	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, (char*)&mreq.imr_interface, sizeof(mreq.imr_interface)) == -1) {
+		perror("setsockopt(IP_MULTICAST_IF)");
+		return(exit_code);
+	}
+
+	if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &(struct timeval) {10, 0}, sizeof(struct timeval)) == -1) {
+		perror("setsockopt(SO_RCVTIMEO)");
+		return(exit_code);
+	}
+
+	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_TTL, &(int){255}, sizeof(int)) == -1) {
+		perror("setsockopt(IP_MULTICAST_TTL)");
+		return(exit_code);
+	}
+
+	if(setsockopt(sockfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) == -1) {
+		perror("setsockopt(IP_ADD_MEMBERSHIP)");
+		return(exit_code);
+	}
+
 	do {
 		recvaddr_len = sizeof(recvaddr);
 
 		/* receive packet */
-		if((res = recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&recvaddr, &recvaddr_len)) == -1) {
-			if(errno == EAGAIN) {
-#if 0
-				puts("No packets");
-#endif
+		if((res = recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr*)&recvaddr, &recvaddr_len)) == -1) {
+			if(errno == EAGAIN)
 				continue;
-			}
 
 			perror("recvfrom()");
 			goto error;
 		}
-
-		puts(inet_ntoa(recvaddr.sin_addr));
 
 		if(!(pkt = mdns_pkt_unpack(buf, res)))
 			continue;
@@ -108,8 +128,8 @@ int main(int narg, char** argv)
 		mdns_pkt_dump(pkt);
 
 		for(i = 0; i < pkt->hdr.qd_cnt; ++ i) {
-			printf("--> %s : %d\n", pkt->queries[i].name, strcmp(pkt->queries[i].name, "comp.local."));
 			if(!strcmp(pkt->queries[i].name, "comp.local.")) {
+				printf("Asking us from: %s\n", inet_ntoa(recvaddr.sin_addr));
 				answer = 1;
 				break;
 			}
@@ -118,18 +138,20 @@ int main(int narg, char** argv)
 		mdns_pkt_destroy(pkt);
 
 		if(answer) {
-			/*memset(&recvaddr, 0, sizeof(recvaddr));
+			memset(&recvaddr, 0, sizeof(recvaddr));
 			inet_aton("224.0.0.251", &recvaddr.sin_addr);
 			recvaddr.sin_family = AF_INET;
-			recvaddr.sin_port = htons(5353);*/
+			recvaddr.sin_port = htons(5353);
 
 			pkt = mdns_pkt_init();
-			pkt->hdr.flags = MDNS_FLAG_QUERY | MDNS_FLAG_AUTH;
 
-			mdns_pkt_add_answer_in(pkt, 120, "comp.local.", &mreq.imr_interface);
+			pkt->hdr.flags = MDNS_FLAG_QUERY | MDNS_FLAG_AUTH;
+			mdns_pkt_add_answer_in(pkt, 30, "comp.local.", &mreq.imr_interface);
 			len = mdns_pkt_pack(pkt, buf, sizeof(buf));
-			sendto(sockfd, buf, len, 0, (struct sockaddr *)&recvaddr, sizeof(recvaddr));
-			perror("sendto");
+
+			if(sendto(sockfd, buf, len, 0, (struct sockaddr*)&recvaddr, sizeof(recvaddr)) == -1)
+				perror("sendto()");
+			
 			mdns_pkt_destroy(pkt);
 		}
 	} while(1);
