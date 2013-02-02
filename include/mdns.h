@@ -175,10 +175,33 @@ int mdns_pkt_pack(mdns_pkt_t* pkt, void* buf, size_t len);
  */
 void mdns_pkt_dump(mdns_pkt_t* pkt);
 
+/**
+ * @brief add answer into packet
+ * @param pkt packet
+ * @param ttl time to live
+ * @param owner owner name
+ * @param in inet address
+ * @return zero, if successfully
+ */
 int mdns_pkt_add_answer_in(mdns_pkt_t* pkt, int32_t ttl, const char* owner, struct in_addr* in);
 
+/**
+ * @brief add answer into packet
+ * @param pkt packet
+ * @param ttl time to live
+ * @param owner owner name
+ * @param name name
+ * @return zero, if successfully
+ **/
 int mdns_pkt_add_answer_name(mdns_pkt_t* pkt, int32_t ttl, const char* owner, const char* name);
 
+/**
+ * @brief add query into packet
+ * @param pkt packet
+ * @param q_type query type
+ * @param name quering name
+ * @return zero, if successfully
+ */
 int mdns_pkt_add_query_in(mdns_pkt_t* pkt, uint16_t q_type, const char* name);
 
 #endif /* __YAMDNS_H */

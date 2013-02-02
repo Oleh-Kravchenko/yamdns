@@ -342,7 +342,16 @@ int mdns_pkt_pack(mdns_pkt_t* pkt, void* buf, size_t len)
 
 		pos = (uint8_t*)(a_hdr + 1);
 
-		memcpy(pos, &pkt->answers[i].rdata.raw, pkt->answers[i].hdr.rd_len);
+		switch(pkt->answers[i].hdr.a_type) {
+			case MDNS_QUERY_TYPE_PTR:
+				if(!mdns_name_pack(pos, len - (size_t)pos - (size_t)buf, pkt->answers[i].rdata.name))
+					return(-1);
+				break;
+
+			default:
+				memcpy(pos, &pkt->answers[i].rdata.raw, pkt->answers[i].hdr.rd_len);
+				break;
+		}
 
 		pos += pkt->answers[i].hdr.rd_len;
 	}

@@ -31,6 +31,9 @@
 
 static int exit_code = 1;
 
+static const char host_name[] = "yamdns.local.";
+static char addr_name[MDNS_MAX_NAME];
+
 /*------------------------------------------------------------------------*/
 
 int main(int narg, char** argv)
@@ -42,7 +45,7 @@ int main(int narg, char** argv)
 	mdns_pkt_t* pkt;
 	size_t len;
 	int sockfd;
-	int answer;
+	int host_answer, addr_answer;
 	int res, i;
 
 	struct ip_mreq mreq;
@@ -67,6 +70,11 @@ int main(int narg, char** argv)
 
 		mreq.imr_interface = *((struct in_addr*)host->h_addr);
 	}
+
+	snprintf(addr_name, sizeof(addr_name),
+		"%s.in-addr.arpa.",
+		inet_ntoa((struct in_addr){__builtin_bswap32(mreq.imr_interface.s_addr)})
+	);
 
 	/* create UDP socket for multicasting */
 	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
@@ -123,37 +131,55 @@ int main(int narg, char** argv)
 		if(!(pkt = mdns_pkt_unpack(buf, res)))
 			continue;
 
-		answer = 0;
+		host_answer = 0;
+		addr_answer = 0;
 
 		mdns_pkt_dump(pkt);
 
 		for(i = 0; i < pkt->hdr.qd_cnt; ++ i) {
-			if(!strcmp(pkt->queries[i].name, "comp.local.")) {
-				printf("Asking us from: %s\n", inet_ntoa(recvaddr.sin_addr));
-				answer = 1;
-				break;
+			if(!strcmp(pkt->queries[i].name, host_name)) {
+				printf("Asking us for %s from: %s\n", host_name, inet_ntoa(recvaddr.sin_addr));
+				host_answer = 1;
+			}
+
+			if(!strcmp(pkt->queries[i].name, addr_name)) {
+				printf("Asking us for %s from %s\n", addr_name, inet_ntoa(recvaddr.sin_addr));
+				addr_answer = 1;
 			}
 		}
 
 		mdns_pkt_destroy(pkt);
+		pkt = NULL;
 
-		if(answer) {
-			memset(&recvaddr, 0, sizeof(recvaddr));
-			inet_aton("224.0.0.251", &recvaddr.sin_addr);
-			recvaddr.sin_family = AF_INET;
-			recvaddr.sin_port = htons(5353);
-
+		if(host_answer) {
 			pkt = mdns_pkt_init();
 
-			pkt->hdr.flags = MDNS_FLAG_QUERY | MDNS_FLAG_AUTH;
-			mdns_pkt_add_answer_in(pkt, 30, "comp.local.", &mreq.imr_interface);
-			len = mdns_pkt_pack(pkt, buf, sizeof(buf));
-
-			if(sendto(sockfd, buf, len, 0, (struct sockaddr*)&recvaddr, sizeof(recvaddr)) == -1)
-				perror("sendto()");
-			
-			mdns_pkt_destroy(pkt);
+			mdns_pkt_add_answer_in(pkt, 30, host_name, &mreq.imr_interface);
 		}
+
+		if(addr_answer) {
+			if(!pkt)
+				pkt = mdns_pkt_init();
+
+			mdns_pkt_add_answer_name(pkt, 30, addr_name, host_name);
+		}
+
+		if(!pkt)
+			continue;
+
+		memset(&recvaddr, 0, sizeof(recvaddr));
+		recvaddr.sin_family = AF_INET;
+		recvaddr.sin_addr = mreq.imr_multiaddr;
+		recvaddr.sin_port = htons(5353);
+
+		pkt->hdr.flags = MDNS_FLAG_QUERY | MDNS_FLAG_AUTH;
+
+		len = mdns_pkt_pack(pkt, buf, sizeof(buf));
+
+		if(sendto(sockfd, buf, len, 0, (struct sockaddr*)&recvaddr, sizeof(recvaddr)) == -1)
+			perror("sendto()");
+
+		mdns_pkt_destroy(pkt);
 	} while(1);
 
 	exit_code = 0;
