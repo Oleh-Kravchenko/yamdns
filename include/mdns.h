@@ -27,15 +27,19 @@
 
 /*------------------------------------------------------------------------*/
 
-#define MDNS_QUERY_TYPE_A       0x0001
-#define MDNS_QUERY_TYPE_PTR     0x000c
-#define MDNS_QUERY_TYPE_AAAA    0x001c
+enum {
+	MDNS_QUERY_TYPE_A     = 0x0001,
+	MDNS_QUERY_TYPE_PTR   = 0x000c,
+	MDNS_QUERY_TYPE_AAAA  = 0x001c,
+};
 
 /*------------------------------------------------------------------------*/
 
-#define MDNS_FLAG_RESPONSE      0
-#define MDNS_FLAG_QUERY         0x8000
-#define MDNS_FLAG_AUTH          0x0400
+enum {
+	MDNS_FLAG_RESPONSE    = 0,
+	MDNS_FLAG_QUERY       = 0x8000,
+	MDNS_FLAG_AUTH        = 0x0400,
+};
 
 /*------------------------------------------------------------------------*/
 

@@ -379,6 +379,7 @@ void mdns_pkt_dump(mdns_pkt_t* pkt)
 	int i;
 
 	puts("<<");
+
 	printf("   id: 0x%04x\n", pkt->hdr.id);
 	printf("flags: 0x%04x\n", pkt->hdr.flags);
 	printf("   qd: 0x%04x\n", pkt->hdr.qd_cnt);

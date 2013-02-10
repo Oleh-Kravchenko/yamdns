@@ -24,15 +24,24 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <signal.h>
 
 #include "mdns.h"
 
 /*------------------------------------------------------------------------*/
 
 static int exit_code = 1;
+static int terminate = 0;
 
 static const char host_name[] = "yamdns.local.";
 static char addr_name[MDNS_MAX_NAME];
+
+/*------------------------------------------------------------------------*/
+
+void on_sigterm(int prm)
+{
+	terminate = 1;
+}
 
 /*------------------------------------------------------------------------*/
 
@@ -71,6 +80,10 @@ int main(int narg, char** argv)
 		mreq.imr_interface = *((struct in_addr*)host->h_addr);
 	}
 
+	signal(SIGTERM, on_sigterm);
+	signal(SIGINT, on_sigterm);
+
+	/* prepare ip address resolution name */
 	snprintf(addr_name, sizeof(addr_name),
 		"%s.in-addr.arpa.",
 		inet_ntoa((struct in_addr){__builtin_bswap32(mreq.imr_interface.s_addr)})
@@ -134,8 +147,6 @@ int main(int narg, char** argv)
 		host_answer = 0;
 		addr_answer = 0;
 
-		mdns_pkt_dump(pkt);
-
 		for(i = 0; i < pkt->hdr.qd_cnt; ++ i) {
 			if(!strcmp(pkt->queries[i].name, host_name)) {
 				printf("Asking us for %s from: %s\n", host_name, inet_ntoa(recvaddr.sin_addr));
@@ -148,6 +159,7 @@ int main(int narg, char** argv)
 			}
 		}
 
+		mdns_pkt_dump(pkt);
 		mdns_pkt_destroy(pkt);
 		pkt = NULL;
 
@@ -180,7 +192,7 @@ int main(int narg, char** argv)
 			perror("sendto()");
 
 		mdns_pkt_destroy(pkt);
-	} while(1);
+	} while(!terminate);
 
 	exit_code = 0;
 
