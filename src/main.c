@@ -33,8 +33,9 @@
 static int exit_code = 1;
 static int terminate = 0;
 
-static const char host_name[] = "yamdns.local.";
+static char host_name[MDNS_MAX_NAME];
 static char addr_name[MDNS_MAX_NAME];
+static const char* hostname;
 
 /*------------------------------------------------------------------------*/
 
@@ -79,6 +80,13 @@ int main(int narg, char** argv)
 
 		mreq.imr_interface = *((struct in_addr*)host->h_addr);
 	}
+
+	if(!(hostname = getenv("HOSTNAME"))) {
+		puts("HOSTNAME not defined");
+		return(1);
+	}
+
+	snprintf(host_name, sizeof(host_name), "%s.local.", hostname);
 
 	signal(SIGTERM, on_sigterm);
 	signal(SIGINT, on_sigterm);
