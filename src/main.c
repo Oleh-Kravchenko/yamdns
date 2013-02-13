@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <syslog.h>
 
 #include "mdns.h"
 
@@ -90,6 +91,8 @@ int main(int narg, char** argv)
 
 	signal(SIGTERM, on_sigterm);
 	signal(SIGINT, on_sigterm);
+
+	openlog(argv[0], LOG_PID, LOG_DAEMON);
 
 	/* prepare ip address resolution name */
 	snprintf(addr_name, sizeof(addr_name),
@@ -157,17 +160,20 @@ int main(int narg, char** argv)
 
 		for(i = 0; i < pkt->hdr.qd_cnt; ++ i) {
 			if(!strcmp(pkt->queries[i].name, host_name)) {
-				printf("Asking us for %s from: %s\n", host_name, inet_ntoa(recvaddr.sin_addr));
+				syslog(LOG_INFO, "Asking us for \"%s\" from \"%s\"\n", host_name, inet_ntoa(recvaddr.sin_addr));
 				host_answer = 1;
 			}
 
 			if(!strcmp(pkt->queries[i].name, addr_name)) {
-				printf("Asking us for %s from %s\n", addr_name, inet_ntoa(recvaddr.sin_addr));
+				syslog(LOG_INFO, "Asking us for \"%s\" from \"%s\"\n", host_name, inet_ntoa(recvaddr.sin_addr));
 				addr_answer = 1;
 			}
 		}
 
+
+#ifndef NDEBUG
 		mdns_pkt_dump(pkt);
+#endif
 		mdns_pkt_destroy(pkt);
 		pkt = NULL;
 
@@ -206,6 +212,8 @@ int main(int narg, char** argv)
 
 error:
 	close(sockfd);
+
+	closelog();
 
 	return(exit_code);
 }
