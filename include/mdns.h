@@ -46,6 +46,9 @@ enum {
 /** max size of dns name including zero byte */
 #define MDNS_MAX_NAME 0x100
 
+/** max size label of name */
+#define MDNS_MAX_LABEL_NAME 0x40
+
 /*------------------------------------------------------------------------*/
 
 /** header of dns packet */

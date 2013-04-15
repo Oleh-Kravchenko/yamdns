@@ -40,7 +40,7 @@
 static const void* mdns_name_unpack(const uint8_t* buf, const uint8_t* pos, const uint8_t* end, char* name, size_t len)
 {
 	const uint8_t* cur = pos;
-	char label[0x40];
+	char label[MDNS_MAX_LABEL_NAME];
 
 	*name = 0;
 
