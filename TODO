@@ -1,0 +1,2 @@
+Use callbacks, instead malloc() in packet processing to reduce memory usage
+Integrate with glibc (/etc/nsswitch.conf)
