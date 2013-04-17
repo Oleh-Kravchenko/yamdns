@@ -112,32 +112,32 @@ int main(int narg, char** argv)
 
 	if(bind(sockfd, (struct sockaddr*)&bindaddr, sizeof(bindaddr)) == -1) {
 		perror("bind()");
-		return(exit_code);
+		goto error;
 	}
 
 	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_LOOP, &(uint8_t){0}, sizeof(uint8_t)) == -1) {
 		perror("setsockopt(IP_MULTICAST_LOOP)");
-		return(exit_code);
+		goto error;
 	}
 
 	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, (char*)&mreq.imr_interface, sizeof(mreq.imr_interface)) == -1) {
 		perror("setsockopt(IP_MULTICAST_IF)");
-		return(exit_code);
+		goto error;
 	}
 
 	if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &(struct timeval) {10, 0}, sizeof(struct timeval)) == -1) {
 		perror("setsockopt(SO_RCVTIMEO)");
-		return(exit_code);
+		goto error;
 	}
 
 	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_TTL, &(int){255}, sizeof(int)) == -1) {
 		perror("setsockopt(IP_MULTICAST_TTL)");
-		return(exit_code);
+		goto error;
 	}
 
 	if(setsockopt(sockfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) == -1) {
 		perror("setsockopt(IP_ADD_MEMBERSHIP)");
-		return(exit_code);
+		goto error;
 	}
 
 	do {
@@ -207,6 +207,11 @@ int main(int narg, char** argv)
 
 		mdns_pkt_destroy(pkt);
 	} while(!terminate);
+
+	if(setsockopt(sockfd, IPPROTO_IP, IP_DROP_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) == -1) {
+		perror("setsockopt(IP_DROP_MEMBERSHIP)");
+		goto error;
+	}
 
 	exit_code = 0;
 
