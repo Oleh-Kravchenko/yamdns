@@ -1,6 +1,7 @@
 Yet another very simple mdns responder
 
 Support:
-- selecting hostname, if current name is already busy
 - response for resolve address request
 - response for resolve hostname request
+- service registrations
+- service discovery

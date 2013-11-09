@@ -12,4 +12,5 @@ include/mdns.h
 src/main.c
 src/dump.c
 src/mdns.c
+src/network.c
 )

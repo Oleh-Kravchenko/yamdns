@@ -28,6 +28,7 @@
 #include <syslog.h>
 
 #include "mdns.h"
+#include "network.h"
 
 /*------------------------------------------------------------------------*/
 
@@ -50,7 +51,6 @@ void on_sigterm(int prm)
 int main(int narg, char** argv)
 {
 	struct sockaddr_in recvaddr;
-	struct sockaddr_in bindaddr;
 	socklen_t recvaddr_len;
 	uint8_t buf[0x10000];
 	mdns_pkt_t* pkt;
@@ -101,43 +101,9 @@ int main(int narg, char** argv)
 	);
 
 	/* create UDP socket for multicasting */
-	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+	if((sockfd = mdns_socket(mreq.imr_multiaddr, mreq.imr_interface, 5555, 255, 10)) == -1) {
 		perror("socket()");
 		return(exit_code);
-	}
-
-	memset(&bindaddr, 0, sizeof(bindaddr));
-	bindaddr.sin_family = AF_INET;
-	bindaddr.sin_port = htons(5353);
-
-	if(bind(sockfd, (struct sockaddr*)&bindaddr, sizeof(bindaddr)) == -1) {
-		perror("bind()");
-		goto error;
-	}
-
-	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_LOOP, &(uint8_t){0}, sizeof(uint8_t)) == -1) {
-		perror("setsockopt(IP_MULTICAST_LOOP)");
-		goto error;
-	}
-
-	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, (char*)&mreq.imr_interface, sizeof(mreq.imr_interface)) == -1) {
-		perror("setsockopt(IP_MULTICAST_IF)");
-		goto error;
-	}
-
-	if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &(struct timeval) {10, 0}, sizeof(struct timeval)) == -1) {
-		perror("setsockopt(SO_RCVTIMEO)");
-		goto error;
-	}
-
-	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_TTL, &(int){255}, sizeof(int)) == -1) {
-		perror("setsockopt(IP_MULTICAST_TTL)");
-		goto error;
-	}
-
-	if(setsockopt(sockfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) == -1) {
-		perror("setsockopt(IP_ADD_MEMBERSHIP)");
-		goto error;
 	}
 
 	do {
@@ -208,10 +174,8 @@ int main(int narg, char** argv)
 		mdns_pkt_destroy(pkt);
 	} while(!terminate);
 
-	if(setsockopt(sockfd, IPPROTO_IP, IP_DROP_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) == -1) {
-		perror("setsockopt(IP_DROP_MEMBERSHIP)");
-		goto error;
-	}
+
+	mdns_close(mreq.imr_multiaddr, mreq.imr_interface, sockfd);
 
 	exit_code = 0;
 
