@@ -26,12 +26,20 @@
 
 /*------------------------------------------------------------------------*/
 
+#define __CDUMP8_ALIGN 12
+
+#define __HEXDUMP8_ALIGN 16
+#define __HEXDUMP8_GROUP 4
+
+/*------------------------------------------------------------------------*/
+
 void strdump(const void* buf, size_t len)
 {
 	const uint8_t* str = buf;
 
-	if(!len)
+	if(!len) {
 		return;
+	}
 
 	while(len --) {
 		putchar(isprint(*str) ? *str : '.');
@@ -45,22 +53,61 @@ void strdump(const void* buf, size_t len)
 void hexdump8(const void* buf, size_t len)
 {
 	const uint8_t* data = buf;
-	size_t i;
+	size_t i, j, spaces, tail;
 
-	if(!len)
+	if(!len) {
 		return;
-
-	printf("%p | ", data);
-	printf("%02x", *data ++);
-
-	for(i = 1; i < len; ++ i) {
-		if(i % 20 == 0)
-			printf("\n%p |", data);
-
-		printf(" %02x", *data ++);
 	}
 
-	printf("\n");
+	for(i = 0; i < len; ++ i) {
+		/* print data like a string */
+		if(i % __HEXDUMP8_ALIGN == 0) {
+			if(i) {
+				printf(" | ");
+				strdump(data - __HEXDUMP8_ALIGN, __HEXDUMP8_ALIGN);
+				putchar('\n');
+			}
+
+			printf("%p |", data);
+		}
+
+		/* group by __HEXDUMP8_GROUP bytes */
+		if(j % __HEXDUMP8_GROUP == 0) {
+			putchar(' ');
+		}
+
+		++ j;
+
+		printf("%02x", *data ++);
+	}
+
+	/* calculate size of align */
+	spaces = len;
+	tail = len % __HEXDUMP8_ALIGN;
+
+	if(tail) {
+		spaces += __HEXDUMP8_ALIGN - tail;
+	} else {
+		tail = __HEXDUMP8_ALIGN;
+	}
+
+	/* print spaces to align tail */
+	while(i < spaces) {
+		/* group by __HEXDUMP8_GROUP byte */
+		if(j % __HEXDUMP8_GROUP == 0) {
+			putchar(' ');
+		}
+
+		++ i;
+		++ j;
+
+		printf("..");
+	}
+
+	/* print data tail */
+	printf(" | ");
+	strdump(data - tail, tail);
+	putchar('\n');
 }
 
 /*------------------------------------------------------------------------*/
@@ -70,15 +117,16 @@ void cdump8(const char* name, const void* buf, size_t len)
 	const uint8_t* data = buf;
 	size_t i;
 
-	if(!len)
+	if(!len) {
 		return;
+	}
 
-	printf("uint8_t %s[%zd] = {\n\t0x%02x", name, len, *data);
+	printf("uint8_t %s[%zd] = {\n\t0x%02x", name, len, *data ++);
 
 	for(i = 1; i < len; ++ i) {
-		printf(i % 12 ? ", " : ",\n\t");
+		printf(i % __CDUMP8_ALIGN ? ", " : ",\n\t");
 
-		printf("0x%02x", data[i]);
+		printf("0x%02x", *data ++);
 	}
 
 	printf("\n};\n");
