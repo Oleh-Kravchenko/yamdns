@@ -5,15 +5,10 @@
 
 /*------------------------------------------------------------------------*/
 
-int mdns_socket(struct in_addr mcaddr, struct in_addr ifaddr, uint16_t port, int ttl, int timeout)
+int mdns_socket(struct ip_mreq* mreq, uint16_t port, int ttl, int timeout)
 {
 	struct sockaddr_in saaddr;
-	struct ip_mreq mreq;
 	int sockfd;
-
-	/* mDNS multicasting address */
-	mreq.imr_multiaddr = mcaddr;
-	mreq.imr_interface = ifaddr;
 
 	/* create UDP socket for multicasting */
 	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
@@ -32,7 +27,8 @@ int mdns_socket(struct in_addr mcaddr, struct in_addr ifaddr, uint16_t port, int
 		goto error;
 	}
 
-	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, (char*)&ifaddr, sizeof(ifaddr)) == -1) {
+	/* send multicasting from interface */
+	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, (char*)&mreq->imr_interface, sizeof(mreq->imr_interface)) == -1) {
 		goto error;
 	}
 
@@ -58,15 +54,10 @@ error:
 
 /*------------------------------------------------------------------------*/
 
-int mdns_close(struct in_addr mcaddr, struct in_addr ifaddr, int sockfd)
+int mdns_close(struct ip_mreq* mreq, int sockfd)
 {
-	struct ip_mreq mreq;
-
-	mreq.imr_multiaddr = mcaddr;
-	mreq.imr_interface = ifaddr;
-
 	if(setsockopt(sockfd, IPPROTO_IP, IP_DROP_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) == -1) {
-		return(-1);
+		/* TODO print warning? */;
 	}
 
 	return(close(sockfd));

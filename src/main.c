@@ -67,7 +67,7 @@ int main(int narg, char** argv)
 	}
 
 	/* mDNS multicasting address */
-	inet_aton("224.0.0.251", &mreq.imr_multiaddr);
+	mreq.imr_multiaddr.s_addr = __MDNS_MC_GROUP;
 
 	/* interface address validation */
 	if(!inet_aton(argv[1], &mreq.imr_interface)) {
@@ -87,21 +87,21 @@ int main(int narg, char** argv)
 		return(1);
 	}
 
-	snprintf(host_name, sizeof(host_name), "%s.local.", hostname);
-
-	signal(SIGTERM, on_sigterm);
-	signal(SIGINT, on_sigterm);
-
-	openlog(argv[0], LOG_PID, LOG_DAEMON);
-
 	/* prepare ip address resolution name */
+	snprintf(host_name, sizeof(host_name), "%s.local.", hostname);
 	snprintf(addr_name, sizeof(addr_name),
 		"%s.in-addr.arpa.",
 		inet_ntoa((struct in_addr){__builtin_bswap32(mreq.imr_interface.s_addr)})
 	);
 
+	/* register signal handlers */
+	signal(SIGTERM, on_sigterm);
+	signal(SIGINT, on_sigterm);
+
+	openlog(argv[0], LOG_PID, LOG_DAEMON);
+
 	/* create UDP socket for multicasting */
-	if((sockfd = mdns_socket(mreq.imr_multiaddr, mreq.imr_interface, 5555, 255, 10)) == -1) {
+	if((sockfd = mdns_socket(&mreq, __MDNS_PORT, 255, 10)) == -1) {
 		perror("socket()");
 		return(exit_code);
 	}
@@ -162,7 +162,7 @@ int main(int narg, char** argv)
 		memset(&recvaddr, 0, sizeof(recvaddr));
 		recvaddr.sin_family = AF_INET;
 		recvaddr.sin_addr = mreq.imr_multiaddr;
-		recvaddr.sin_port = htons(5353);
+		recvaddr.sin_port = htons(__MDNS_PORT);
 
 		pkt->hdr.flags = MDNS_FLAG_QUERY | MDNS_FLAG_AUTH;
 
@@ -174,13 +174,10 @@ int main(int narg, char** argv)
 		mdns_pkt_destroy(pkt);
 	} while(!terminate);
 
-
-	mdns_close(mreq.imr_multiaddr, mreq.imr_interface, sockfd);
-
 	exit_code = 0;
 
 error:
-	close(sockfd);
+	mdns_close(&mreq, sockfd);
 
 	closelog();
 
