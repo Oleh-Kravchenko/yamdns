@@ -53,7 +53,7 @@ void strdump(const void* buf, size_t len)
 void hexdump8(const void* buf, size_t len)
 {
 	const uint8_t* data = buf;
-	size_t i, j, spaces, tail;
+	size_t i, spaces, tail;
 
 	if(!len) {
 		return;
@@ -72,11 +72,9 @@ void hexdump8(const void* buf, size_t len)
 		}
 
 		/* group by __HEXDUMP8_GROUP bytes */
-		if(j % __HEXDUMP8_GROUP == 0) {
+		if(i % __HEXDUMP8_GROUP == 0) {
 			putchar(' ');
 		}
-
-		++ j;
 
 		printf("%02x", *data ++);
 	}
@@ -94,14 +92,13 @@ void hexdump8(const void* buf, size_t len)
 	/* print spaces to align tail */
 	while(i < spaces) {
 		/* group by __HEXDUMP8_GROUP byte */
-		if(j % __HEXDUMP8_GROUP == 0) {
+		if(i % __HEXDUMP8_GROUP == 0) {
 			putchar(' ');
 		}
 
 		++ i;
-		++ j;
 
-		printf("..");
+		printf("  ");
 	}
 
 	/* print data tail */
