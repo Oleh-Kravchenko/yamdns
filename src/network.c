@@ -40,7 +40,7 @@ int mdns_socket(struct ip_mreq* mreq, uint16_t port, int ttl, int timeout)
 		goto error;
 	}
 
-	if(setsockopt(sockfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) == -1) {
+	if(setsockopt(sockfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)mreq, sizeof(*mreq)) == -1) {
 		goto error;
 	}
 
