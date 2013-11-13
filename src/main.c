@@ -53,11 +53,8 @@ int main(int narg, char** argv)
 	struct sockaddr_in recvaddr;
 	socklen_t recvaddr_len;
 	uint8_t buf[0x10000];
-	mdns_pkt_t* pkt;
-	size_t len;
 	int sockfd;
-	int host_answer, addr_answer;
-	int res, i;
+	int res;
 
 	struct ip_mreq mreq;
 
@@ -118,60 +115,7 @@ int main(int narg, char** argv)
 			goto error;
 		}
 
-		if(!(pkt = mdns_pkt_unpack(buf, res)))
-			continue;
-
-		host_answer = 0;
-		addr_answer = 0;
-
-		for(i = 0; i < pkt->hdr.qd_cnt; ++ i) {
-			if(!strcmp(pkt->queries[i].name, host_name)) {
-				syslog(LOG_INFO, "Asking us for \"%s\" from \"%s\"\n", host_name, inet_ntoa(recvaddr.sin_addr));
-				host_answer = 1;
-			}
-
-			if(!strcmp(pkt->queries[i].name, addr_name)) {
-				syslog(LOG_INFO, "Asking us for \"%s\" from \"%s\"\n", host_name, inet_ntoa(recvaddr.sin_addr));
-				addr_answer = 1;
-			}
-		}
-
-
-#ifndef NDEBUG
-		mdns_pkt_dump(pkt);
-#endif
-		mdns_pkt_destroy(pkt);
-		pkt = NULL;
-
-		if(host_answer) {
-			pkt = mdns_pkt_init();
-
-			mdns_pkt_add_answer_in(pkt, 30, host_name, &mreq.imr_interface);
-		}
-
-		if(addr_answer) {
-			if(!pkt)
-				pkt = mdns_pkt_init();
-
-			mdns_pkt_add_answer_name(pkt, 30, addr_name, host_name);
-		}
-
-		if(!pkt)
-			continue;
-
-		memset(&recvaddr, 0, sizeof(recvaddr));
-		recvaddr.sin_family = AF_INET;
-		recvaddr.sin_addr = mreq.imr_multiaddr;
-		recvaddr.sin_port = htons(__MDNS_PORT);
-
-		pkt->hdr.flags = MDNS_FLAG_QUERY | MDNS_FLAG_AUTH;
-
-		len = mdns_pkt_pack(pkt, buf, sizeof(buf));
-
-		if(sendto(sockfd, buf, len, 0, (struct sockaddr*)&recvaddr, sizeof(recvaddr)) == -1)
-			perror("sendto()");
-
-		mdns_pkt_destroy(pkt);
+		mdns_packet_dump(buf, res); fflush(stdout);
 	} while(!terminate);
 
 	exit_code = 0;

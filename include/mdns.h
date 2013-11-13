@@ -34,11 +34,13 @@
 
 /*------------------------------------------------------------------------*/
 
-enum {
+typedef enum mdns_record_type {
 	MDNS_QUERY_TYPE_A     = 0x0001,
 	MDNS_QUERY_TYPE_PTR   = 0x000c,
+	MDNS_QUERY_TYPE_TEXT  = 0x0010,
 	MDNS_QUERY_TYPE_AAAA  = 0x001c,
-};
+	MDNS_QUERY_TYPE_SRV   = 0x0021,
+} mdns_record_type_t;
 
 /*------------------------------------------------------------------------*/
 
@@ -90,16 +92,6 @@ typedef struct mdns_query_hdr {
 	uint16_t q_class;
 } __attribute__((__packed__)) mdns_query_hdr_t;
 
-/*------------------------------------------------------------------------*/
-
-/** uncompressed query */
-typedef struct mdns_query {
-	/** header of query */
-	mdns_query_hdr_t hdr;
-
-	/** target of query */
-	char name[MDNS_MAX_NAME];
-} mdns_query_t;
 
 /*------------------------------------------------------------------------*/
 
@@ -120,102 +112,52 @@ typedef struct mdns_answer_hdr {
 
 /*------------------------------------------------------------------------*/
 
-/** uncompressed answer */
-typedef struct mdns_answer {
-	/** header of answer */
-	mdns_answer_hdr_t hdr;
+typedef struct mdns_record_srv {
+	uint16_t priority;
 
-	/** owner of answer */
-	char owner[MDNS_MAX_NAME];
+	uint16_t weight;
 
-	/** payload for answer */
-	union {
-		/** name */
-		char name[MDNS_MAX_NAME];
+	uint16_t port;
 
-		/** IPv4 address */
-		struct in_addr in;
-
-		/** raw data */
-		uint8_t raw[MDNS_MAX_NAME];
-	} rdata;
-} mdns_answer_t;
+	char target[];
+} mdns_record_srv_t;
 
 /*------------------------------------------------------------------------*/
 
-/** uncompressed/parsed mDNS packet */
-typedef struct mdns_pkt {
-	/** header */
-	mdns_hdr_t hdr;
+typedef void (*mdns_query_handler)(const mdns_query_hdr_t*, const char*);
+typedef void (*mdns_answer_handler_a)(const mdns_answer_hdr_t*, const char*, struct in_addr*);
+typedef void (*mdns_answer_handler_ptr)(const mdns_answer_hdr_t*, const char*, const char*);
+typedef void (*mdns_answer_handler_text)(const mdns_answer_hdr_t*, const char*, const char*);
+typedef void (*mdns_answer_handler_srv)(const mdns_answer_hdr_t*, const char*, mdns_record_srv_t*, const char*);
+typedef void (*mdns_answer_handler_raw)(const mdns_answer_hdr_t*, const char*, const void*, size_t);
 
-	/** pointer to queries */
-	mdns_query_t* queries;
-
-	/** pointer to answers */
-	mdns_answer_t* answers;
-} mdns_pkt_t;
+typedef struct mdns_handlers {
+	mdns_query_handler q;
+	mdns_answer_handler_a a;
+	mdns_answer_handler_ptr ptr;
+	mdns_answer_handler_text text;
+	mdns_answer_handler_srv srv;
+	mdns_answer_handler_raw raw;
+} mdns_handlers_t;
 
 /*------------------------------------------------------------------------*/
 
-/** create empty mdns packet */
-mdns_pkt_t* mdns_pkt_init(void);
+int mdns_packet_init(void* buf, size_t len);
 
-/**
- * @brief free resource of mDNS packet
- * @param [in] pkt mDNS packet, can be NULL
- */
-void mdns_pkt_destroy(mdns_pkt_t* pkt);
+size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handlers);
 
-/**
- * @brief parse raw mDNS packet
- * @param [in] buf buffer
- * @param [in] len length of buffer
- * @return NULL if parser failed.
- */
-mdns_pkt_t* mdns_pkt_unpack(const void* buf, size_t len);
+void mdns_packet_dump(const void* buf, size_t len);
 
-/**
- * @brief pack mDNS packet into raw packet
- * @param [in] pkt packet
- * @param [in,out] buf buffer for raw packet
- * @param [in,out] len maximum length of buffer
- * @return zero if successful
- */
-int mdns_pkt_pack(mdns_pkt_t* pkt, void* buf, size_t len);
+size_t mdns_packet_size(void* buf, size_t len);
 
-/**
- * @brief dump mdns packet
- * @param [in] pkt mDNS packet
- */
-void mdns_pkt_dump(mdns_pkt_t* pkt);
+int mdns_packet_add_answer_in(void* buf, size_t len, uint32_t ttl, const char* owner, struct in_addr in);
 
-/**
- * @brief add answer into packet
- * @param pkt packet
- * @param ttl time to live
- * @param owner owner name
- * @param in inet address
- * @return zero, if successfully
- */
-int mdns_pkt_add_answer_in(mdns_pkt_t* pkt, int32_t ttl, const char* owner, struct in_addr* in);
+int mdns_packet_add_answer_ptr(void* buf, size_t len, uint32_t ttl, const char* owner, const char* name);
 
-/**
- * @brief add answer into packet
- * @param pkt packet
- * @param ttl time to live
- * @param owner owner name
- * @param name name
- * @return zero, if successfully
- **/
-int mdns_pkt_add_answer_name(mdns_pkt_t* pkt, int32_t ttl, const char* owner, const char* name);
+int mdns_packet_add_answer_text(void* buf, size_t len, uint32_t ttl, const char* owner, const char* text);
 
-/**
- * @brief add query into packet
- * @param pkt packet
- * @param q_type query type
- * @param name quering name
- * @return zero, if successfully
- */
-int mdns_pkt_add_query_in(mdns_pkt_t* pkt, uint16_t q_type, const char* name);
+int mdns_packet_add_answer_srv(void* buf, size_t len, uint32_t ttl, const char* owner, uint16_t prio, uint16_t weight, uint16_t port, const char* name);
+
+int mdns_packet_add_query_in(void* buf, size_t len, uint16_t q_type, const char* name);
 
 #endif /* __YAMDNS_H */
