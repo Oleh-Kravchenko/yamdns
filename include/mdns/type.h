@@ -1,5 +1,5 @@
 /**
- * @file mdns.h
+ * @file type.h
  *
  * yamdns -- yet another very simple mdns.
  * Copyright (C) 2013  Oleh Kravchenko <oleg@kaa.org.ua>
@@ -18,11 +18,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __YAMDNS_H
-#define __YAMDNS_H
+#ifndef __YAMDNS_TYPE_H
+#define __YAMDNS_TYPE_H
 
 #include <stdint.h>
-#include <stdlib.h>
 #include <netinet/in.h>
 
 /*------------------------------------------------------------------------*/
@@ -30,7 +29,14 @@
 /** 224.0.0.251 */
 #define __MDNS_MC_GROUP 0xfb0000e0
 
+/** default mdns port */
 #define __MDNS_PORT 5353
+
+/** max size of dns name including zero byte */
+#define MDNS_MAX_NAME 0x100
+
+/** max size label of name */
+#define MDNS_MAX_LABEL_NAME 0x40
 
 /*------------------------------------------------------------------------*/
 
@@ -49,14 +55,6 @@ enum {
 	MDNS_FLAG_QUERY       = 0x8000,
 	MDNS_FLAG_AUTH        = 0x0400,
 };
-
-/*------------------------------------------------------------------------*/
-
-/** max size of dns name including zero byte */
-#define MDNS_MAX_NAME 0x100
-
-/** max size label of name */
-#define MDNS_MAX_LABEL_NAME 0x40
 
 /*------------------------------------------------------------------------*/
 
@@ -140,24 +138,4 @@ typedef struct mdns_handlers {
 	mdns_answer_handler_raw raw;
 } mdns_handlers_t;
 
-/*------------------------------------------------------------------------*/
-
-int mdns_packet_init(void* buf, size_t len);
-
-size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handlers);
-
-void mdns_packet_dump(const void* buf, size_t len);
-
-size_t mdns_packet_size(void* buf, size_t len);
-
-int mdns_packet_add_answer_in(void* buf, size_t len, uint32_t ttl, const char* owner, struct in_addr in);
-
-int mdns_packet_add_answer_ptr(void* buf, size_t len, uint32_t ttl, const char* owner, const char* name);
-
-int mdns_packet_add_answer_text(void* buf, size_t len, uint32_t ttl, const char* owner, const char* text);
-
-int mdns_packet_add_answer_srv(void* buf, size_t len, uint32_t ttl, const char* owner, uint16_t prio, uint16_t weight, uint16_t port, const char* name);
-
-int mdns_packet_add_query_in(void* buf, size_t len, uint16_t q_type, const char* name);
-
-#endif /* __YAMDNS_H */
+#endif /* __YAMDNS_TYPE_H */

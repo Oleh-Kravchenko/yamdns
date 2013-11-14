@@ -22,8 +22,9 @@
 #include <string.h>
 #include <arpa/inet.h>
 
+#include <mdns/mdns.h>
+
 #include "dump.h"
-#include "mdns.h"
 
 /*------------------------------------------------------------------------*/
 
