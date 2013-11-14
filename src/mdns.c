@@ -378,6 +378,7 @@ static void mdns_dump_answer_handler_raw(const mdns_answer_hdr_t* h, const char*
 
 void mdns_packet_dump(const void* buf, size_t len)
 {
+	const mdns_hdr_t* hdr = buf;
 	size_t ret;
 
 	mdns_handlers_t handlers = {
@@ -389,16 +390,33 @@ void mdns_packet_dump(const void* buf, size_t len)
 		.raw = mdns_dump_answer_handler_raw,
 	};
 
-	if((ret = mdns_packet_process(buf, len, &handlers)) != len) {
-		printf("failed to parse packet on offset 0x%lx (%p):\n",
-			ret, (uint8_t*)buf + ret
-		);
-
-		printf("ret=%zd len=%zd\n", ret, len);
-
-		hexdump8(buf, len);
-		putchar('\n');
+	if(sizeof(*hdr) > len) {
+		ret = 0;
+		goto err;
 	}
+
+	/* print header */
+	printf("     id: 0x%04x\n", ntohs(hdr->id));
+	printf("  flags: 0x%04x\n", ntohs(hdr->flags));
+	printf("queries: 0x%04x\n", ntohs(hdr->qd_cnt));
+	printf("answers: 0x%04x\n", ntohs(hdr->an_cnt));
+	printf("auth_rr: 0x%04x\n", ntohs(hdr->ns_cnt));
+	printf(" add_rr: 0x%04x\n", ntohs(hdr->ar_cnt));
+
+	/* process mdns packet */
+	ret = mdns_packet_process(buf, len, &handlers);
+	if(ret != len) {
+		goto err;
+	}
+
+	return;
+
+err:
+	printf("failed to parse packet on offset 0x%lx (%p):\n",
+		ret, (uint8_t*)buf + ret
+	);
+
+	hexdump8(buf, len);
 }
 
 /*------------------------------------------------------------------------*/
