@@ -421,7 +421,13 @@ err:
 
 /*------------------------------------------------------------------------*/
 
-size_t mdns_packet_size(void* buf, size_t len);
+size_t mdns_packet_size(const void* buf, size_t len)
+{
+	mdns_handlers_t handlers = {0};
+
+	/* calculate packet size by processing */
+	return(mdns_packet_process(buf, len, &handlers));
+}
 
 /*------------------------------------------------------------------------*/
 

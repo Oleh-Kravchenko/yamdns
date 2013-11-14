@@ -29,7 +29,7 @@ size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handler
 
 void mdns_packet_dump(const void* buf, size_t len);
 
-size_t mdns_packet_size(void* buf, size_t len);
+size_t mdns_packet_size(const void* buf, size_t len);
 
 int mdns_packet_add_answer_in(void* buf, size_t len, uint32_t ttl, const char* owner, struct in_addr in);
 
