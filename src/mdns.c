@@ -477,7 +477,7 @@ size_t mdns_packet_size(const void* buf, size_t len)
 
 /*------------------------------------------------------------------------*/
 
-int mdns_packet_add_query_in(void* buf, size_t len, uint16_t q_class, uint16_t q_type, const char* name)
+int mdns_packet_add_query_in(void* buf, size_t len, uint16_t q_type, const char* name)
 {
 	mdns_hdr_t* hdr = buf;
 	mdns_query_hdr_t* query_hdr;
