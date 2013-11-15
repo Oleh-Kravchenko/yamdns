@@ -123,6 +123,37 @@ static const void* mdns_name_unpack(const uint8_t* buf, const uint8_t* pos, cons
 	return(cur + 1);
 }
 
+
+/*------------------------------------------------------------------------*/
+
+static void* mdns_name_pack(void* buf, size_t len, const char* name)
+{
+	uint8_t* pos = buf;
+	const char* label;
+
+	/* check for buffer length */
+	if(strlen(name) + 1 > len) {
+		return(NULL);
+	}
+
+	while((label = strchr(name, '.'))) {
+		/* put label length */
+		*pos = label - name;
+
+		/* put label */
+		memcpy(pos + 1, name, *pos);
+
+		/* moving next */
+		name = label + 1;
+		pos += *pos + 1;
+	}
+
+	/* terminate packed name by 0 */
+	*pos ++ = 0;
+
+	return(pos);
+}
+
 /*------------------------------------------------------------------------*/
 
 int mdns_packet_init(void* buf, size_t len)
