@@ -31,6 +31,8 @@ void mdns_packet_dump(const void* buf, size_t len);
 
 size_t mdns_packet_size(const void* buf, size_t len);
 
+int mdns_packet_add_query_in(void* buf, size_t len, uint16_t q_class, uint16_t q_type, const char* name);
+
 int mdns_packet_add_answer_in(void* buf, size_t len, uint32_t ttl, const char* owner, struct in_addr in);
 
 int mdns_packet_add_answer_ptr(void* buf, size_t len, uint32_t ttl, const char* owner, const char* name);
@@ -38,7 +40,5 @@ int mdns_packet_add_answer_ptr(void* buf, size_t len, uint32_t ttl, const char* 
 int mdns_packet_add_answer_text(void* buf, size_t len, uint32_t ttl, const char* owner, const char* text);
 
 int mdns_packet_add_answer_srv(void* buf, size_t len, uint32_t ttl, const char* owner, uint16_t prio, uint16_t weight, uint16_t port, const char* name);
-
-int mdns_packet_add_query_in(void* buf, size_t len, uint16_t q_type, const char* name);
 
 #endif /* __YAMDNS_H */
