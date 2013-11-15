@@ -354,7 +354,7 @@ static void mdns_dump_answer_handler_ptr_text(const mdns_answer_hdr_t* h, const 
 	mdns_dump_answer(h, root);
 
 	/* text or pointer */
-	printf("%s", ptr);
+	printf("%s]\n", ptr);
 }
 
 static void mdns_dump_answer_handler_srv(const mdns_answer_hdr_t* h, const char* root, mdns_record_srv_t* srv, const char* target)
