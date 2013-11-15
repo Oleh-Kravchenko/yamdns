@@ -28,23 +28,23 @@
 
 /*------------------------------------------------------------------------*/
 
-static const char* mdns_str_type(mdns_record_type_t rec)
+static const char* mdns_str_type(mdns_record_t rec)
 {
 	switch(rec)
 	{
-		case MDNS_QUERY_TYPE_A:
+		case MDNS_RECORD_A:
 			return("A");
 
-		case MDNS_QUERY_TYPE_PTR:
+		case MDNS_RECORD_PTR:
 			return("PTR");
 
-		case MDNS_QUERY_TYPE_TEXT:
+		case MDNS_RECORD_TEXT:
 			return("TEXT");
 
-		case MDNS_QUERY_TYPE_AAAA:
+		case MDNS_RECORD_AAAA:
 			return("AAAA");
 
-		case MDNS_QUERY_TYPE_SRV:
+		case MDNS_RECORD_SRV:
 			return("SRV");
 
 		default:
@@ -265,7 +265,7 @@ size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handler
 
 			/* parse rdata */
 			switch(ntohs(answer_hdr->a_type)) {
-				case MDNS_QUERY_TYPE_A: {
+				case MDNS_RECORD_A: {
 					cur = pos + sizeof(struct in_addr);
 
 					/* check for range */
@@ -281,7 +281,7 @@ size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handler
 					break;
 				}
 
-				case MDNS_QUERY_TYPE_TEXT: {
+				case MDNS_RECORD_TEXT: {
 					char text[MDNS_MAX_NAME];
 
 					cur = mdns_name_unpack(buf, pos, pos + ntohs(answer_hdr->rd_len), text, sizeof(text));
@@ -299,7 +299,7 @@ size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handler
 					break;
 				}
 
-				case MDNS_QUERY_TYPE_PTR: {
+				case MDNS_RECORD_PTR: {
 					char target[MDNS_MAX_NAME];
 
 					cur = mdns_name_unpack(buf, pos, pos + ntohs(answer_hdr->rd_len), target, sizeof(target));
@@ -317,7 +317,7 @@ size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handler
 					break;
 				}
 
-				case MDNS_QUERY_TYPE_SRV: {
+				case MDNS_RECORD_SRV: {
 					char target[MDNS_MAX_NAME];
 
 					srv = (mdns_record_srv_t*)pos;
@@ -499,13 +499,13 @@ int mdns_packet_add_query_in(void* buf, size_t len, uint16_t q_class, uint16_t q
 	}
 
 	/* check free space for query header */
-	if((uintptr_t)pos - (uintptr_t)buf + sizeof(*query_hdr) > len) {
+	if((uintptr_t)pos - (uintptr_t)buf + sizeof(mdns_query_hdr_t) > len) {
 		return(-1);
 	}
 
 	/* fill query header */
 	query_hdr = (mdns_query_hdr_t*)pos;
-	query_hdr->q_class = htons(q_class);
+	query_hdr->q_class = htons(MDNS_CLASS_IN);
 	query_hdr->q_type = htons(q_type);
 
 	/* increment query count */

@@ -40,13 +40,19 @@
 
 /*------------------------------------------------------------------------*/
 
-typedef enum mdns_record_type {
-	MDNS_QUERY_TYPE_A     = 0x0001,
-	MDNS_QUERY_TYPE_PTR   = 0x000c,
-	MDNS_QUERY_TYPE_TEXT  = 0x0010,
-	MDNS_QUERY_TYPE_AAAA  = 0x001c,
-	MDNS_QUERY_TYPE_SRV   = 0x0021,
-} mdns_record_type_t;
+typedef enum mdns_record {
+	MDNS_RECORD_A     = 0x0001,
+	MDNS_RECORD_PTR   = 0x000c,
+	MDNS_RECORD_TEXT  = 0x0010,
+	MDNS_RECORD_AAAA  = 0x001c,
+	MDNS_RECORD_SRV   = 0x0021,
+} mdns_record_t;
+
+/*------------------------------------------------------------------------*/
+
+typedef enum mdns_class_type {
+	MDNS_CLASS_IN     = 0x0001,
+} mdns_class_type_t;
 
 /*------------------------------------------------------------------------*/
 
