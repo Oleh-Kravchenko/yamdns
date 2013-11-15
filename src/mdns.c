@@ -516,7 +516,53 @@ int mdns_packet_add_query_in(void* buf, size_t len, uint16_t q_type, const char*
 
 /*------------------------------------------------------------------------*/
 
-int mdns_packet_add_answer_in(void* buf, size_t len, uint32_t ttl, const char* owner, struct in_addr in);
+int mdns_packet_add_answer_in(void* buf, size_t len, uint32_t ttl, const char* root, struct in_addr in)
+{
+	mdns_hdr_t* hdr = buf;
+	mdns_answer_hdr_t* answer_hdr;
+	uint8_t* pos;
+	size_t ret;
+
+	/* we can't add query if another data present */
+	if(hdr->ns_cnt || hdr->ar_cnt) {
+		return(-1);
+	}
+
+	/* calculate end position of packet */
+	ret = mdns_packet_size(buf, len);
+	pos = (void*)((uintptr_t)buf + ret);
+
+	/* pack root name */
+	if(!(pos = mdns_name_pack(pos, len - ret, root))) {
+		return(-1);
+	}
+
+	/* check free space for answer header */
+	if((uintptr_t)pos - (uintptr_t)buf + sizeof(mdns_answer_hdr_t) > len) {
+		return(-1);
+	}
+
+	/* fill answer header */
+	answer_hdr = (mdns_answer_hdr_t*)pos;
+	answer_hdr->a_class = htons(MDNS_CLASS_IN);
+	answer_hdr->a_type = htons(MDNS_RECORD_A);
+	answer_hdr->a_ttl = htonl(ttl);
+	answer_hdr->rd_len = htons(sizeof(in));
+
+	/* check free space for in addr */
+	if((uintptr_t)pos - (uintptr_t)buf + sizeof(in) > len) {
+		return(-1);
+	}
+
+	/* put in addr */
+	pos += sizeof(*answer_hdr);
+	memcpy(pos, &in, sizeof(in));
+
+	/* increment answer count */
+	hdr->an_cnt = htons(ntohs(hdr->an_cnt) + 1);
+
+	return(0);
+}
 
 /*------------------------------------------------------------------------*/
 
