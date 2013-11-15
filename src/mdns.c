@@ -128,11 +128,15 @@ static const void* mdns_name_unpack(const uint8_t* buf, const uint8_t* pos, cons
 
 static void* mdns_name_pack(void* buf, size_t len, const char* name)
 {
-	uint8_t* pos = buf;
 	const char* label;
+	size_t namelen;
+	uint8_t* pos;
+
+	pos = buf;
+	namelen = strlen(name) + 1;
 
 	/* check for buffer length */
-	if(strlen(name) + 1 > len) {
+	if(namelen > len) {
 		return(NULL);
 	}
 
@@ -145,6 +149,17 @@ static void* mdns_name_pack(void* buf, size_t len, const char* name)
 
 		/* moving next */
 		name = label + 1;
+		pos += *pos + 1;
+	}
+
+	/* if user forget about last dot */
+	if(*name) {
+		*pos = namelen - ((uintptr_t)pos - (uintptr_t)buf + 1);
+
+		/* put label */
+		memcpy(pos + 1, name, *pos);
+
+		/* moving next */
 		pos += *pos + 1;
 	}
 
