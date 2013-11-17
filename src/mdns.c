@@ -1,5 +1,5 @@
 /**
- * @file mdns.h
+ * @file mdns.c
  *
  * yamdns -- yet another very simple mdns.
  * Copyright (C) 2013  Oleh Kravchenko <oleg@kaa.org.ua>

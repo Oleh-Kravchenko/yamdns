@@ -23,22 +23,93 @@
 
 #include <mdns/type.h>
 
+/**
+ * @brief initialize buffer with empty mDNS packet
+ * @param [in,out] buf buffer for data
+ * @param [in] len length of buf
+ * @return zero, if successful
+ */
 int mdns_packet_init(void* buf, size_t len);
 
+/**
+ * @brief process mDNS packet and call handlers
+ * @param [in] buf buffer with packet
+ * @param [in] len size of buffer or packet
+ * @param [in] handlers callback handlers
+ * @return size of successfully parsed data
+ */
 size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handlers);
 
+/**
+ * @brief print dump of mDNS packet
+ * @param [in] buf buffer with packet
+ * @param [in] len size of buffer or packet
+ */
 void mdns_packet_dump(const void* buf, size_t len);
 
+/**
+ * @brief calculate mDNS packet size
+ * @param [in] buf buffer with packet
+ * @param [in] len size of buffer or packet
+ * @return size of mDNS packet in buf
+ */
 size_t mdns_packet_size(const void* buf, size_t len);
 
+/**
+ * @brief add query into mDNS packet
+ * @param [in,out] buf buffer with packet
+ * @param [in] len size of buffer or packet
+ * @param [in] q_type resource type
+ * @param [in] name requested resource
+ * @return zero, if successful
+ */
 int mdns_packet_add_query_in(void* buf, size_t len, uint16_t q_type, const char* name);
 
+/**
+ * @brief add answer for in address into mDNS packet
+ * @param [in,out] buf buffer with packet
+ * @param [in] len size of buffer or packet
+ * @param [in] ttl time to live of this answer
+ * @param [in] root query of answer
+ * @param [in] in IPv4 address
+ * @return zero, if successful
+ */
 int mdns_packet_add_answer_in(void* buf, size_t len, uint32_t ttl, const char* root, struct in_addr in);
 
+/**
+ * @brief add answer about pointer into mDNS packet
+ * @param [in,out] buf buffer with packet
+ * @param [in] len size of buffer or packet
+ * @param [in] ttl time to live of this answer
+ * @param [in] root query of answer
+ * @param [in] name pointer name
+ * @return zero, if successful
+ */
 int mdns_packet_add_answer_in_ptr(void* buf, size_t len, uint32_t ttl, const char* root, const char* name);
 
+/**
+ * @brief add answer text record into mDNS packet
+ * @param [in,out] buf buffer with packet
+ * @param [in] len size of buffer or packet
+ * @param [in] ttl time to live of this answer
+ * @param [in] root query of answer
+ * @param [in] text text
+ * @return zero, if successful
+ */
 int mdns_packet_add_answer_in_text(void* buf, size_t len, uint32_t ttl, const char* root, const char* text);
 
+/**
+ * @brief add answer about service into mDNS packet
+ * @param [in,out] buf buffer with packet
+ * @param [in] len size of buffer or packet
+ * @param [in] ttl time to live of this answer
+ * @param [in] root query of answer
+ * @param [in] prio priority of service
+ * @param [in] weight weight of service
+ * @param [in] port service port (0-65535)
+ * @param [in] name name of service host
+ * @return zero, if successful
+ */
 int mdns_packet_add_answer_in_srv(void* buf, size_t len, uint32_t ttl, const char* root, uint16_t prio, uint16_t weight, uint16_t port, const char* name);
 
 #endif /* __YAMDNS_H */

@@ -40,6 +40,7 @@
 
 /*------------------------------------------------------------------------*/
 
+/** DNS record types */
 typedef enum mdns_record {
 	MDNS_RECORD_A     = 0x0001,
 	MDNS_RECORD_PTR   = 0x000c,
@@ -50,7 +51,9 @@ typedef enum mdns_record {
 
 /*------------------------------------------------------------------------*/
 
+/** mDNS class */
 typedef enum mdns_class_type {
+	/** internet class */
 	MDNS_CLASS_IN     = 0x0001,
 } mdns_class_type_t;
 
@@ -116,31 +119,61 @@ typedef struct mdns_answer_hdr {
 
 /*------------------------------------------------------------------------*/
 
+/** mDNS record about service */
 typedef struct mdns_record_srv {
+	/** always zero */
 	uint16_t priority;
 
+	/** always zero */
 	uint16_t weight;
 
+	/** port of service */
 	uint16_t port;
 
+	/** service name and pointer to service owner */
 	char name[];
 } mdns_record_srv_t;
 
 /*------------------------------------------------------------------------*/
 
+/** type of query handler */
 typedef void (*mdns_query_handler)(const mdns_query_hdr_t*, const char*);
+
+/** type of answer handler for type A */
 typedef void (*mdns_answer_handler_a)(const mdns_answer_hdr_t*, const char*, struct in_addr*);
+
+/** type of answer handler for type PTR */
 typedef void (*mdns_answer_handler_ptr)(const mdns_answer_hdr_t*, const char*, const char*);
+
+/** type of answer handler for type TEXT */
 typedef void (*mdns_answer_handler_text)(const mdns_answer_hdr_t*, const char*, const char*);
+
+/** type of answer handler for type SRV */
 typedef void (*mdns_answer_handler_srv)(const mdns_answer_hdr_t*, const char*, mdns_record_srv_t*, const char*);
+
+/** type of answer handler for unknown types */
 typedef void (*mdns_answer_handler_raw)(const mdns_answer_hdr_t*, const char*, const void*, size_t);
 
+/*------------------------------------------------------------------------*/
+
+/** callbacks handlers for mDNS packet */
 typedef struct mdns_handlers {
+	/** query handler */
 	mdns_query_handler q;
+	
+	/** answer handler for type A */
 	mdns_answer_handler_a a;
+
+	/** answer handler for type PTR */
 	mdns_answer_handler_ptr ptr;
+
+	/** answer handler for type TEXT */
 	mdns_answer_handler_text text;
+
+	/** answer handler for type SRV */
 	mdns_answer_handler_srv srv;
+
+	/** answer handler for unknown types */
 	mdns_answer_handler_raw raw;
 } mdns_handlers_t;
 
