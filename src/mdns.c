@@ -132,6 +132,7 @@ static void* mdns_name_pack(void* buf, size_t* len, const char* name)
 	size_t namelen;
 	uint8_t* pos;
 
+	/* TODO: implement compress */
 	pos = buf;
 	namelen = strlen(name) + 1;
 
@@ -574,7 +575,52 @@ int mdns_packet_add_answer_in(void* buf, size_t len, uint32_t ttl, const char* r
 
 /*------------------------------------------------------------------------*/
 
-int mdns_packet_add_answer_ptr(void* buf, size_t len, uint32_t ttl, const char* owner, const char* name);
+int mdns_packet_add_answer_in_ptr(void* buf, size_t len, uint32_t ttl, const char* root, const char* name)
+{
+	mdns_hdr_t* hdr = buf;
+	mdns_answer_hdr_t* answer_hdr;
+	uint8_t* pos;
+	size_t cur;
+
+	/* we can't add answer if another data present */
+	if(hdr->ns_cnt || hdr->ar_cnt) {
+		return(-1);
+	}
+
+	/* calculate end position of packet */
+	cur = mdns_packet_size(buf, len);
+	pos = (void*)((uintptr_t)buf + cur);
+	len -= cur;
+
+	/* pack root name */
+	if(!(pos = mdns_name_pack(pos, &len, root))) {
+		return(-1);
+	}
+
+	/* check free space for answer header */
+	if(sizeof(*answer_hdr) > len) {
+		return(-1);
+	}
+
+	/* fill answer header */
+	answer_hdr = (mdns_answer_hdr_t*)pos;
+	answer_hdr->a_class = htons(MDNS_CLASS_IN);
+	answer_hdr->a_type = htons(MDNS_RECORD_PTR);
+	answer_hdr->a_ttl = htonl(ttl);
+	answer_hdr->rd_len = htons(strlen(name) + 1); /* TODO: implement compress */
+	len -= sizeof(*answer_hdr);
+	pos += sizeof(*answer_hdr);
+
+	/* put in pointer name */
+	if(!(pos = mdns_name_pack(pos, &len, name))) {
+		return(-1);
+	}
+
+	/* increment answer count */
+	hdr->an_cnt = htons(ntohs(hdr->an_cnt) + 1);
+
+	return(0);
+}
 
 /*------------------------------------------------------------------------*/
 
