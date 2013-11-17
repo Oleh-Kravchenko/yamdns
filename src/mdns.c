@@ -334,7 +334,7 @@ size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handler
 				}
 
 				case MDNS_RECORD_SRV: {
-					char target[MDNS_MAX_NAME];
+					char service[MDNS_MAX_NAME];
 
 					srv = (mdns_record_srv_t*)pos;
 					cur = pos + sizeof(mdns_record_srv_t);
@@ -344,7 +344,7 @@ size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handler
 						goto err;
 					}
 
-					cur = mdns_name_unpack(buf, (void*)&srv->target, pos + ntohs(answer_hdr->rd_len), target, sizeof(target));
+					cur = mdns_name_unpack(buf, (void*)&srv->name, pos + ntohs(answer_hdr->rd_len), service, sizeof(service));
 
 					/* check for range */
 					if(!cur || cur > end) {
@@ -353,7 +353,7 @@ size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handler
 
 					/* call service handler */
 					if(handlers->srv) {
-						handlers->srv(answer_hdr, root, srv, target);
+						handlers->srv(answer_hdr, root, srv, service);
 					}
 
 					break;

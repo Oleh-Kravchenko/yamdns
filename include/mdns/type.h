@@ -123,7 +123,7 @@ typedef struct mdns_record_srv {
 
 	uint16_t port;
 
-	char target[];
+	char name[];
 } mdns_record_srv_t;
 
 /*------------------------------------------------------------------------*/
