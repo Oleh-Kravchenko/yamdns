@@ -38,6 +38,9 @@
 /** max size label of name */
 #define MDNS_MAX_LABEL_NAME 0x40
 
+/** service discovery query */
+#define MDNS_QUERY_SERVICE_DISCOVERY "_services._dns-sd._udp.local."
+
 /*------------------------------------------------------------------------*/
 
 /** DNS record types */
