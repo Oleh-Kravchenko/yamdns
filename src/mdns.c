@@ -624,7 +624,48 @@ int mdns_packet_add_answer_in_ptr(void* buf, size_t len, uint32_t ttl, const cha
 
 /*------------------------------------------------------------------------*/
 
-int mdns_packet_add_answer_text(void* buf, size_t len, uint32_t ttl, const char* owner, const char* text);
+int mdns_packet_add_answer_in_text(void* buf, size_t len, uint32_t ttl, const char* root, const char* text)
+{
+	mdns_hdr_t* hdr = buf;
+	mdns_answer_hdr_t* answer_hdr;
+
+	/* we can't add answer if another data present */
+	if(hdr->ns_cnt || hdr->ar_cnt) {
+		return(-1);
+	}
+
+	/* calculate end position in packet */
+	mdns_packet_current(&buf, &len);
+
+	/* pack root name */
+	if(!(buf = mdns_name_pack(buf, &len, root))) {
+		return(-1);
+	}
+
+	/* check free space for answer header */
+	if(sizeof(*answer_hdr) > len) {
+		return(-1);
+	}
+
+	/* fill answer header */
+	answer_hdr = (mdns_answer_hdr_t*)buf;
+	answer_hdr->a_class = htons(MDNS_CLASS_IN);
+	answer_hdr->a_type = htons(MDNS_RECORD_TEXT);
+	answer_hdr->a_ttl = htonl(ttl);
+	answer_hdr->rd_len = htons(strlen(text) + 1); /* TODO: implement compress */
+	buf = (void*)((uintptr_t)buf + sizeof(*answer_hdr));
+	len -= sizeof(*answer_hdr);
+
+	/* put in text name */
+	if(!(buf = mdns_name_pack(buf, &len, text))) {
+		return(-1);
+	}
+
+	/* increment answer count */
+	hdr->an_cnt = htons(ntohs(hdr->an_cnt) + 1);
+
+	return(0);
+}
 
 /*------------------------------------------------------------------------*/
 
