@@ -104,6 +104,20 @@ int main(int narg, char** argv)
 		return(exit_code);
 	}
 
+	memset(&recvaddr, 0, sizeof(recvaddr));
+	recvaddr.sin_family = AF_INET;
+	recvaddr.sin_port = htons(5353);
+	recvaddr.sin_addr.s_addr = __MDNS_MC_GROUP;
+
+	mdns_packet_init(&buf, sizeof(buf));
+	mdns_packet_add_query_in(buf, sizeof(buf), MDNS_RECORD_PTR, MDNS_QUERY_SERVICE_DISCOVERY);
+	res = sendto(sockfd, buf, mdns_packet_size(buf, sizeof(buf)), 0, (struct sockaddr*)&recvaddr, sizeof(recvaddr));
+
+	printf("(out) to %s:%d, length: %d\n",
+		inet_ntoa(recvaddr.sin_addr), ntohs(recvaddr.sin_port), res);
+
+	mdns_packet_dump(buf, res); fflush(stdout);
+
 	do {
 		recvaddr_len = sizeof(recvaddr);
 
@@ -115,6 +129,9 @@ int main(int narg, char** argv)
 			perror("recvfrom()");
 			goto error;
 		}
+
+		printf("(in) from %s:%d, length: %d\n",
+			inet_ntoa(recvaddr.sin_addr), ntohs(recvaddr.sin_port), res);
 
 		mdns_packet_dump(buf, res); fflush(stdout);
 	} while(!terminate);
