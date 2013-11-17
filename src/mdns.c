@@ -175,6 +175,18 @@ static void* mdns_name_pack(void* buf, size_t* len, const char* name)
 
 /*------------------------------------------------------------------------*/
 
+static void mdns_packet_current(void** buf, size_t* len)
+{
+	size_t cur;
+
+	/* calculate end position in packet */
+	cur = mdns_packet_size(*buf, *len);
+	*buf = (void*)((uintptr_t)*buf + cur);
+	len -= cur;
+}
+
+/*------------------------------------------------------------------------*/
+
 int mdns_packet_init(void* buf, size_t len)
 {
 	mdns_hdr_t* hdr = buf;
@@ -485,21 +497,17 @@ int mdns_packet_add_query_in(void* buf, size_t len, uint16_t q_type, const char*
 {
 	mdns_hdr_t* hdr = buf;
 	mdns_query_hdr_t* query_hdr;
-	uint8_t* pos;
-	size_t cur;
 
 	/* we can't add query if another data present */
 	if(hdr->an_cnt || hdr->ns_cnt || hdr->ar_cnt) {
 		return(-1);
 	}
 
-	/* calculate end position of packet */
-	cur = mdns_packet_size(buf, len);
-	pos = (void*)((uintptr_t)buf + cur);
-	len -= cur;
+	/* calculate end position in packet */
+	mdns_packet_current(&buf, &len);
 
 	/* pack name */
-	if(!(pos = mdns_name_pack(pos, &len, name))) {
+	if(!(buf = mdns_name_pack(buf, &len, name))) {
 		return(-1);
 	}
 
@@ -509,7 +517,7 @@ int mdns_packet_add_query_in(void* buf, size_t len, uint16_t q_type, const char*
 	}
 
 	/* fill query header */
-	query_hdr = (mdns_query_hdr_t*)pos;
+	query_hdr = (mdns_query_hdr_t*)buf;
 	query_hdr->q_class = htons(MDNS_CLASS_IN);
 	query_hdr->q_type = htons(q_type);
 	len -= sizeof(*query_hdr);
@@ -526,21 +534,17 @@ int mdns_packet_add_answer_in(void* buf, size_t len, uint32_t ttl, const char* r
 {
 	mdns_hdr_t* hdr = buf;
 	mdns_answer_hdr_t* answer_hdr;
-	uint8_t* pos;
-	size_t cur;
 
 	/* we can't add query if another data present */
 	if(hdr->ns_cnt || hdr->ar_cnt) {
 		return(-1);
 	}
 
-	/* calculate end position of packet */
-	cur = mdns_packet_size(buf, len);
-	pos = (void*)((uintptr_t)buf + cur);
-	len -= cur;
+	/* calculate end position in packet */
+	mdns_packet_current(&buf, &len);
 
 	/* pack root name */
-	if(!(pos = mdns_name_pack(pos, &len, root))) {
+	if(!(buf = mdns_name_pack(buf, &len, root))) {
 		return(-1);
 	}
 
@@ -550,13 +554,13 @@ int mdns_packet_add_answer_in(void* buf, size_t len, uint32_t ttl, const char* r
 	}
 
 	/* fill answer header */
-	answer_hdr = (mdns_answer_hdr_t*)pos;
+	answer_hdr = (mdns_answer_hdr_t*)buf;
 	answer_hdr->a_class = htons(MDNS_CLASS_IN);
 	answer_hdr->a_type = htons(MDNS_RECORD_A);
 	answer_hdr->a_ttl = htonl(ttl);
 	answer_hdr->rd_len = htons(sizeof(in));
+	buf = (void*)((uintptr_t)buf + sizeof(*answer_hdr));
 	len -= sizeof(*answer_hdr);
-	pos += sizeof(*answer_hdr);
 
 	/* check free space for in addr */
 	if(sizeof(in) > len) {
@@ -564,7 +568,7 @@ int mdns_packet_add_answer_in(void* buf, size_t len, uint32_t ttl, const char* r
 	}
 
 	/* put in addr */
-	memcpy(pos, &in, sizeof(in));
+	memcpy(buf, &in, sizeof(in));
 	len -= sizeof(in);
 
 	/* increment answer count */
@@ -579,21 +583,17 @@ int mdns_packet_add_answer_in_ptr(void* buf, size_t len, uint32_t ttl, const cha
 {
 	mdns_hdr_t* hdr = buf;
 	mdns_answer_hdr_t* answer_hdr;
-	uint8_t* pos;
-	size_t cur;
 
 	/* we can't add answer if another data present */
 	if(hdr->ns_cnt || hdr->ar_cnt) {
 		return(-1);
 	}
 
-	/* calculate end position of packet */
-	cur = mdns_packet_size(buf, len);
-	pos = (void*)((uintptr_t)buf + cur);
-	len -= cur;
+	/* calculate end position in packet */
+	mdns_packet_current(&buf, &len);
 
 	/* pack root name */
-	if(!(pos = mdns_name_pack(pos, &len, root))) {
+	if(!(buf = mdns_name_pack(buf, &len, root))) {
 		return(-1);
 	}
 
@@ -603,16 +603,16 @@ int mdns_packet_add_answer_in_ptr(void* buf, size_t len, uint32_t ttl, const cha
 	}
 
 	/* fill answer header */
-	answer_hdr = (mdns_answer_hdr_t*)pos;
+	answer_hdr = (mdns_answer_hdr_t*)buf;
 	answer_hdr->a_class = htons(MDNS_CLASS_IN);
 	answer_hdr->a_type = htons(MDNS_RECORD_PTR);
 	answer_hdr->a_ttl = htonl(ttl);
 	answer_hdr->rd_len = htons(strlen(name) + 1); /* TODO: implement compress */
+	buf = (void*)((uintptr_t)buf + sizeof(*answer_hdr));
 	len -= sizeof(*answer_hdr);
-	pos += sizeof(*answer_hdr);
 
 	/* put in pointer name */
-	if(!(pos = mdns_name_pack(pos, &len, name))) {
+	if(!(buf = mdns_name_pack(buf, &len, name))) {
 		return(-1);
 	}
 
