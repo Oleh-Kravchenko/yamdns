@@ -41,6 +41,9 @@
 /** service discovery query */
 #define MDNS_QUERY_SERVICE_DISCOVERY "_services._dns-sd._udp.local."
 
+/** address resolve query */
+#define MDNS_QUERY_RESOLVE_ADDRESS ".in-addr.arpa."
+
 /*------------------------------------------------------------------------*/
 
 /** DNS record types */

@@ -474,7 +474,7 @@ void mdns_packet_dump(const void* buf, size_t len)
 	return;
 
 err:
-	printf("failed to parse packet on offset 0x%lx (%p):\n",
+	printf("failed to parse packet on offset 0x%zx (%p):\n",
 		ret, (uint8_t*)buf + ret
 	);
 
