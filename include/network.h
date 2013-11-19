@@ -3,8 +3,20 @@
 
 #include <arpa/inet.h>
 
-int mdns_socket(struct ip_mreq* mreq, uint16_t port, int ttl, int timeout);
+/**
+ * @brief create and bind socket for mdns
+ * @param ifaddr interface address
+ * @param timeout default timeout for socket read ops
+ * @return zero, if successful
+ */
+int mdns_socket(struct in_addr ifaddr, int timeout);
 
-int mdns_close(struct ip_mreq* mreq, int sockfd);
+/**
+ * @brief close mdns socket
+ * @param ifaddr interface address
+ * @param sockfd socket desctriptor
+ * @return zero, if successful
+ */
+int mdns_close(struct in_addr ifaddr, int sockfd);
 
 #endif /* __MDNS_NETWORK_H */

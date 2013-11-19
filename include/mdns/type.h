@@ -27,10 +27,13 @@
 /*------------------------------------------------------------------------*/
 
 /** 224.0.0.251 */
-#define __MDNS_MC_GROUP 0xfb0000e0
+#define __MDNS_MC_GROUP (struct in_addr){.s_addr = 0xfb0000e0}
 
 /** default mdns port */
 #define __MDNS_PORT 5353
+
+/** default TTL for mDNS */
+#define __MDNS_TTL 255
 
 /** max size of dns name including zero byte */
 #define MDNS_MAX_NAME 0x100

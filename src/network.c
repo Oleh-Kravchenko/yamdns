@@ -3,11 +3,14 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#include <mdns/type.h>
+
 /*------------------------------------------------------------------------*/
 
-int mdns_socket(struct ip_mreq* mreq, uint16_t port, int ttl, int timeout)
+int mdns_socket(struct in_addr ifaddr, int timeout)
 {
 	struct sockaddr_in saaddr;
+	struct ip_mreq mreq;
 	int sockfd;
 
 	/* create UDP socket for multicasting */
@@ -15,9 +18,13 @@ int mdns_socket(struct ip_mreq* mreq, uint16_t port, int ttl, int timeout)
 		return(-1);
 	}
 
+	if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) == -1) {
+		goto error;
+	}
+
 	memset(&saaddr, 0, sizeof(saaddr));
 	saaddr.sin_family = AF_INET;
-	saaddr.sin_port = htons(port);
+	saaddr.sin_port = htons(__MDNS_PORT);
 
 	if(bind(sockfd, (struct sockaddr*)&saaddr, sizeof(saaddr)) == -1) {
 		goto error;
@@ -28,7 +35,7 @@ int mdns_socket(struct ip_mreq* mreq, uint16_t port, int ttl, int timeout)
 	}
 
 	/* send multicasting from interface */
-	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, (char*)&mreq->imr_interface, sizeof(mreq->imr_interface)) == -1) {
+	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, (char*)&ifaddr, sizeof(ifaddr)) == -1) {
 		goto error;
 	}
 
@@ -36,11 +43,14 @@ int mdns_socket(struct ip_mreq* mreq, uint16_t port, int ttl, int timeout)
 		goto error;
 	}
 
-	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl)) == -1) {
+	if(setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_TTL, &(int){__MDNS_TTL}, sizeof(int)) == -1) {
 		goto error;
 	}
 
-	if(setsockopt(sockfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)mreq, sizeof(*mreq)) == -1) {
+	mreq.imr_interface = ifaddr;
+	mreq.imr_multiaddr = __MDNS_MC_GROUP;
+
+	if(setsockopt(sockfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) == -1) {
 		goto error;
 	}
 
@@ -54,8 +64,13 @@ error:
 
 /*------------------------------------------------------------------------*/
 
-int mdns_close(struct ip_mreq* mreq, int sockfd)
+int mdns_close(struct in_addr ifaddr, int sockfd)
 {
+	struct ip_mreq mreq;
+
+	mreq.imr_interface = ifaddr;
+	mreq.imr_multiaddr = __MDNS_MC_GROUP;
+
 	if(setsockopt(sockfd, IPPROTO_IP, IP_DROP_MEMBERSHIP, (char*)&mreq, sizeof(mreq)) == -1) {
 		/* TODO print warning? */;
 	}

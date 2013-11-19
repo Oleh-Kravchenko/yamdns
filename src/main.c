@@ -53,31 +53,21 @@ int main(int narg, char** argv)
 {
 	struct sockaddr_in recvaddr;
 	socklen_t recvaddr_len;
-	uint8_t buf[0x10000];
+	struct in_addr ifaddr;
+	uint8_t buf[1500];
 	int sockfd;
 	int res;
-
-	struct ip_mreq mreq;
 
 	if(narg != 2) {
 		puts("Interface not specificaited");
 		return(1);
 	}
 
-	/* mDNS multicasting address */
-	mreq.imr_multiaddr.s_addr = __MDNS_MC_GROUP;
-
 	/* interface address validation */
-	if(!inet_aton(argv[1], &mreq.imr_interface)) {
-		struct hostent* host = gethostbyname(argv[1]);
+	if(!inet_aton(argv[1], &ifaddr)) {
+		printf("%s: unknown interface %s\n", argv[0], argv[1]);
 
-		if(!host) {
-			printf("%s: unknown interface %s\n", argv[0], argv[1]);
-
-			return(exit_code);
-		}
-
-		mreq.imr_interface = *((struct in_addr*)host->h_addr);
+		return(exit_code);
 	}
 
 	if(!(hostname = getenv("HOSTNAME"))) {
@@ -89,7 +79,7 @@ int main(int narg, char** argv)
 	snprintf(host_name, sizeof(host_name), "%s.local.", hostname);
 	snprintf(addr_name, sizeof(addr_name),
 		"%s.in-addr.arpa.",
-		inet_ntoa((struct in_addr){__builtin_bswap32(mreq.imr_interface.s_addr)})
+		inet_ntoa((struct in_addr){__builtin_bswap32(ifaddr.s_addr)})
 	);
 
 	/* register signal handlers */
@@ -99,7 +89,7 @@ int main(int narg, char** argv)
 	openlog(argv[0], LOG_PID, LOG_DAEMON);
 
 	/* create UDP socket for multicasting */
-	if((sockfd = mdns_socket(&mreq, __MDNS_PORT, 255, 10)) == -1) {
+	if((sockfd = mdns_socket(ifaddr, 10)) == -1) {
 		perror("socket()");
 		return(exit_code);
 	}
@@ -107,7 +97,7 @@ int main(int narg, char** argv)
 	memset(&recvaddr, 0, sizeof(recvaddr));
 	recvaddr.sin_family = AF_INET;
 	recvaddr.sin_port = htons(5353);
-	recvaddr.sin_addr.s_addr = __MDNS_MC_GROUP;
+	recvaddr.sin_addr = __MDNS_MC_GROUP;
 
 	mdns_packet_init(&buf, sizeof(buf));
 	mdns_packet_add_query_in(buf, sizeof(buf), MDNS_RECORD_PTR, MDNS_QUERY_SERVICE_DISCOVERY);
@@ -139,7 +129,7 @@ int main(int narg, char** argv)
 	exit_code = 0;
 
 error:
-	mdns_close(&mreq, sockfd);
+	mdns_close(ifaddr, sockfd);
 
 	closelog();
 
