@@ -25,18 +25,27 @@
 
 /**
  * @brief create and bind socket for mdns
- * @param ifaddr interface address
- * @param timeout default timeout for socket read ops
+ * @param [in] ifaddr interface address
+ * @param [in] timeout default timeout for socket read ops
  * @return zero, if successful
  */
 int mdns_socket(struct in_addr ifaddr, int timeout);
 
 /**
  * @brief close mdns socket
- * @param ifaddr interface address
- * @param sockfd socket desctriptor
+ * @param [in] ifaddr interface address
+ * @param [in] sockfd socket desctriptor
  * @return zero, if successful
  */
 int mdns_close(struct in_addr ifaddr, int sockfd);
+
+/**
+ * @brief send mDNS packet
+ * @param [in] sockfd socket desctriptor
+ * @param [in] buf pointer to packet
+ * @param [in] len length of packet
+ * @return int
+ */
+int mdns_send(int sockfd, void* buf, size_t len);
 
 #endif /* __YAMDNS_NETWORK_H */

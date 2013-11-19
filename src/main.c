@@ -141,14 +141,7 @@ int main(int narg, char** argv)
 
 		mdns_packet_init(&bufout, sizeof(bufout));
 		mdns_packet_process(bufin, res, &handlers, &ctx);
-
-		/* prepare sending */
-		memset(&sa, 0, sizeof(sa));
-		sa.sin_family = AF_INET;
-		sa.sin_port = htons(__MDNS_PORT);
-		sa.sin_addr = __MDNS_MC_GROUP;
-
-		res = sendto(sockfd, bufout, mdns_packet_size(bufout, sizeof(bufout)), 0, (struct sockaddr*)&sa, sizeof(sa));
+		res = mdns_send(sockfd, bufout, mdns_packet_size(bufout, sizeof(bufout)));
 
 		/* print sended packet */
 		printf("(out) to %s:%d, length: %d\n",

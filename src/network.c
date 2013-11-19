@@ -95,3 +95,17 @@ int mdns_close(struct in_addr ifaddr, int sockfd)
 
 	return(close(sockfd));
 }
+
+/*------------------------------------------------------------------------*/
+
+int mdns_send(int sockfd, void* buf, size_t len)
+{
+	struct sockaddr_in sa;
+
+	memset(&sa, 0, sizeof(sa));
+	sa.sin_family = AF_INET;
+	sa.sin_port = htons(__MDNS_PORT);
+	sa.sin_addr = __MDNS_MC_GROUP;
+
+	return(sendto(sockfd, buf, len, 0, (struct sockaddr*)&sa, sizeof(sa)));
+}
