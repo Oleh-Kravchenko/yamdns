@@ -26,9 +26,13 @@
 
 /*------------------------------------------------------------------------*/
 
+/** length of column for cdump8() */
 #define __CDUMP8_ALIGN 12
 
+/** length of column for hexdump8() */
 #define __HEXDUMP8_ALIGN 16
+
+/** length of group for hexdump8() */
 #define __HEXDUMP8_GROUP 4
 
 /*------------------------------------------------------------------------*/

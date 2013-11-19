@@ -1,4 +1,4 @@
-PROJECT_NAME           = yamdns
+PROJECT_NAME           = YamDNS
 OUTPUT_DIRECTORY       = doxygen
 GENERATE_LATEX         = NO
 GENERATE_MAN           = NO

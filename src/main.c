@@ -27,7 +27,8 @@
 #include <signal.h>
 #include <syslog.h>
 
-#include "mdns.h"
+#include <yamdns/yamdns.h>
+
 #include "network.h"
 
 /*------------------------------------------------------------------------*/
@@ -38,6 +39,20 @@ static int terminate = 0;
 static char host_name[MDNS_MAX_NAME];
 static char addr_name[MDNS_MAX_NAME];
 static const char* hostname;
+static struct in_addr ifaddr;
+
+typedef struct mdns_ctx {
+	void* buf;
+	size_t len;
+} mdns_ctx_t;
+
+/*------------------------------------------------------------------------*/
+
+static void mdns_dump_query_handler(void* ctx, const mdns_query_hdr_t* h, const char* root);
+
+mdns_handlers_t handlers = {
+	.q = mdns_dump_query_handler,
+};
 
 /*------------------------------------------------------------------------*/
 
@@ -48,38 +63,39 @@ void on_sigterm(int prm)
 
 /*------------------------------------------------------------------------*/
 
+static void mdns_dump_query_handler(void* ctx, const mdns_query_hdr_t* h, const char* root)
+{
+	mdns_ctx_t* priv = ctx;
+
+	if(!strcmp(root, host_name)) {
+		mdns_packet_add_answer_in(priv->buf, priv->len, 60, root, ifaddr);
+	} else if(!strcmp(root, addr_name)) {
+		mdns_packet_add_answer_in_ptr(priv->buf, priv->len, 60, root, host_name);
+	}
+}
+
+/*------------------------------------------------------------------------*/
+
 int main(int narg, char** argv)
 {
-	struct sockaddr_in recvaddr;
-	socklen_t recvaddr_len;
-	uint8_t buf[0x10000];
-	mdns_pkt_t* pkt;
-	size_t len;
+	struct sockaddr_in sa;
+	socklen_t sa_len;
+	uint8_t bufin[1500];
+	uint8_t bufout[1500];
+	mdns_ctx_t ctx = {.buf = bufout, .len = sizeof(bufout),};
 	int sockfd;
-	int host_answer, addr_answer;
-	int res, i;
-
-	struct ip_mreq mreq;
+	int res;
 
 	if(narg != 2) {
 		puts("Interface not specificaited");
 		return(1);
 	}
 
-	/* mDNS multicasting address */
-	mreq.imr_multiaddr.s_addr = __MDNS_MC_GROUP;
-
 	/* interface address validation */
-	if(!inet_aton(argv[1], &mreq.imr_interface)) {
-		struct hostent* host = gethostbyname(argv[1]);
+	if(!inet_aton(argv[1], &ifaddr)) {
+		printf("%s: unknown interface %s\n", argv[0], argv[1]);
 
-		if(!host) {
-			printf("%s: unknown interface %s\n", argv[0], argv[1]);
-
-			return(exit_code);
-		}
-
-		mreq.imr_interface = *((struct in_addr*)host->h_addr);
+		return(exit_code);
 	}
 
 	if(!(hostname = getenv("HOSTNAME"))) {
@@ -91,7 +107,7 @@ int main(int narg, char** argv)
 	snprintf(host_name, sizeof(host_name), "%s.local.", hostname);
 	snprintf(addr_name, sizeof(addr_name),
 		"%s.in-addr.arpa.",
-		inet_ntoa((struct in_addr){__builtin_bswap32(mreq.imr_interface.s_addr)})
+		inet_ntoa((struct in_addr){__builtin_bswap32(ifaddr.s_addr)})
 	);
 
 	/* register signal handlers */
@@ -101,16 +117,16 @@ int main(int narg, char** argv)
 	openlog(argv[0], LOG_PID, LOG_DAEMON);
 
 	/* create UDP socket for multicasting */
-	if((sockfd = mdns_socket(&mreq, __MDNS_PORT, 255, 10)) == -1) {
+	if((sockfd = mdns_socket(ifaddr, 10)) == -1) {
 		perror("socket()");
 		return(exit_code);
 	}
 
 	do {
-		recvaddr_len = sizeof(recvaddr);
+		sa_len = sizeof(sa);
 
 		/* receive packet */
-		if((res = recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr*)&recvaddr, &recvaddr_len)) == -1) {
+		if((res = recvfrom(sockfd, bufin, sizeof(bufin), 0, (struct sockaddr*)&sa, &sa_len)) == -1) {
 			if(errno == EAGAIN)
 				continue;
 
@@ -118,66 +134,32 @@ int main(int narg, char** argv)
 			goto error;
 		}
 
-		if(!(pkt = mdns_pkt_unpack(buf, res)))
-			continue;
+		/* process incoming packet */
+		printf("(in) from %s:%d, length: %d\n",
+			inet_ntoa(sa.sin_addr), ntohs(sa.sin_port), res);
+		mdns_packet_dump(bufin, res); fflush(stdout);
 
-		host_answer = 0;
-		addr_answer = 0;
+		mdns_packet_init(&bufout, sizeof(bufout));
+		mdns_packet_process(bufin, res, &handlers, &ctx);
 
-		for(i = 0; i < pkt->hdr.qd_cnt; ++ i) {
-			if(!strcmp(pkt->queries[i].name, host_name)) {
-				syslog(LOG_INFO, "Asking us for \"%s\" from \"%s\"\n", host_name, inet_ntoa(recvaddr.sin_addr));
-				host_answer = 1;
-			}
+		/* prepare sending */
+		memset(&sa, 0, sizeof(sa));
+		sa.sin_family = AF_INET;
+		sa.sin_port = htons(__MDNS_PORT);
+		sa.sin_addr = __MDNS_MC_GROUP;
 
-			if(!strcmp(pkt->queries[i].name, addr_name)) {
-				syslog(LOG_INFO, "Asking us for \"%s\" from \"%s\"\n", host_name, inet_ntoa(recvaddr.sin_addr));
-				addr_answer = 1;
-			}
-		}
+		res = sendto(sockfd, bufout, mdns_packet_size(bufout, sizeof(bufout)), 0, (struct sockaddr*)&sa, sizeof(sa));
 
-
-#ifndef NDEBUG
-		mdns_pkt_dump(pkt);
-#endif
-		mdns_pkt_destroy(pkt);
-		pkt = NULL;
-
-		if(host_answer) {
-			pkt = mdns_pkt_init();
-
-			mdns_pkt_add_answer_in(pkt, 30, host_name, &mreq.imr_interface);
-		}
-
-		if(addr_answer) {
-			if(!pkt)
-				pkt = mdns_pkt_init();
-
-			mdns_pkt_add_answer_name(pkt, 30, addr_name, host_name);
-		}
-
-		if(!pkt)
-			continue;
-
-		memset(&recvaddr, 0, sizeof(recvaddr));
-		recvaddr.sin_family = AF_INET;
-		recvaddr.sin_addr = mreq.imr_multiaddr;
-		recvaddr.sin_port = htons(__MDNS_PORT);
-
-		pkt->hdr.flags = MDNS_FLAG_QUERY | MDNS_FLAG_AUTH;
-
-		len = mdns_pkt_pack(pkt, buf, sizeof(buf));
-
-		if(sendto(sockfd, buf, len, 0, (struct sockaddr*)&recvaddr, sizeof(recvaddr)) == -1)
-			perror("sendto()");
-
-		mdns_pkt_destroy(pkt);
+		/* print sended packet */
+		printf("(out) to %s:%d, length: %d\n",
+			inet_ntoa(sa.sin_addr), ntohs(sa.sin_port), res);
+		mdns_packet_dump(bufout, res); fflush(stdout);
 	} while(!terminate);
 
 	exit_code = 0;
 
 error:
-	mdns_close(&mreq, sockfd);
+	mdns_close(ifaddr, sockfd);
 
 	closelog();
 
