@@ -27,7 +27,7 @@
 #include <signal.h>
 #include <syslog.h>
 
-#include <mdns/mdns.h>
+#include <yamdns/yamdns.h>
 
 #include "network.h"
 

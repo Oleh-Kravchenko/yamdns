@@ -1,5 +1,5 @@
 /**
- * @file mdns.c
+ * @file yamdns.c
  *
  * yamdns -- yet another very simple mdns.
  * Copyright (C) 2013  Oleh Kravchenko <oleg@kaa.org.ua>
@@ -22,7 +22,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 
-#include <mdns/mdns.h>
+#include <yamdns/yamdns.h>
 
 #include "dump.h"
 

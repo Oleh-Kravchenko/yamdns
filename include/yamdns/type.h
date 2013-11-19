@@ -22,57 +22,8 @@
 #define __YAMDNS_TYPE_H
 
 #include <stdint.h>
-#include <netinet/in.h>
 
-/*------------------------------------------------------------------------*/
-
-/** 224.0.0.251 */
-#define __MDNS_MC_GROUP (struct in_addr){.s_addr = 0xfb0000e0}
-
-/** default mdns port */
-#define __MDNS_PORT 5353
-
-/** default TTL for mDNS */
-#define __MDNS_TTL 255
-
-/** max size of dns name including zero byte */
-#define MDNS_MAX_NAME 0x100
-
-/** max size label of name */
-#define MDNS_MAX_LABEL_NAME 0x40
-
-/** service discovery query */
-#define MDNS_QUERY_SERVICE_DISCOVERY "_services._dns-sd._udp.local."
-
-/** address resolve query */
-#define MDNS_QUERY_RESOLVE_ADDRESS ".in-addr.arpa."
-
-/*------------------------------------------------------------------------*/
-
-/** DNS record types */
-typedef enum mdns_record {
-	MDNS_RECORD_A     = 0x0001,
-	MDNS_RECORD_PTR   = 0x000c,
-	MDNS_RECORD_TEXT  = 0x0010,
-	MDNS_RECORD_AAAA  = 0x001c,
-	MDNS_RECORD_SRV   = 0x0021,
-} mdns_record_t;
-
-/*------------------------------------------------------------------------*/
-
-/** mDNS class */
-typedef enum mdns_class_type {
-	/** internet class */
-	MDNS_CLASS_IN     = 0x0001,
-} mdns_class_type_t;
-
-/*------------------------------------------------------------------------*/
-
-enum {
-	MDNS_FLAG_RESPONSE    = 0,
-	MDNS_FLAG_QUERY       = 0x8000,
-	MDNS_FLAG_AUTH        = 0x0400,
-};
+#include <yamdns/define.h>
 
 /*------------------------------------------------------------------------*/
 

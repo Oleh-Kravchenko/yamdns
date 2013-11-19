@@ -1,5 +1,5 @@
 /**
- * @file mdns.h
+ * @file yamdns.h
  *
  * yamdns -- yet another very simple mdns.
  * Copyright (C) 2013  Oleh Kravchenko <oleg@kaa.org.ua>
@@ -21,7 +21,7 @@
 #ifndef __YAMDNS_H
 #define __YAMDNS_H
 
-#include <mdns/type.h>
+#include <yamdns/type.h>
 
 /**
  * @brief initialize buffer with empty mDNS packet

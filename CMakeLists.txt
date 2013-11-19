@@ -7,11 +7,11 @@ ADD_DEFINITIONS(-pedantic -std=gnu99 -Wall -Werror)
 INCLUDE_DIRECTORIES(include)
 
 ADD_EXECUTABLE(yamdns
-include/mdns/type.h
-include/mdns/mdns.h
+include/yamdns/yamdns.h
+include/yamdns/type.h
 include/dump.h
 src/main.c
 src/dump.c
-src/mdns.c
+src/yamdns.c
 src/network.c
 )
