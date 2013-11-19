@@ -39,6 +39,20 @@ static int terminate = 0;
 static char host_name[MDNS_MAX_NAME];
 static char addr_name[MDNS_MAX_NAME];
 static const char* hostname;
+static struct in_addr ifaddr;
+
+typedef struct mdns_ctx {
+	void* buf;
+	size_t len;
+} mdns_ctx_t;
+
+/*------------------------------------------------------------------------*/
+
+static void mdns_dump_query_handler(void* ctx, const mdns_query_hdr_t* h, const char* root);
+
+mdns_handlers_t handlers = {
+	.q = mdns_dump_query_handler,
+};
 
 /*------------------------------------------------------------------------*/
 
@@ -49,12 +63,26 @@ void on_sigterm(int prm)
 
 /*------------------------------------------------------------------------*/
 
+static void mdns_dump_query_handler(void* ctx, const mdns_query_hdr_t* h, const char* root)
+{
+	mdns_ctx_t* priv = ctx;
+
+	if(!strcmp(root, host_name)) {
+		mdns_packet_add_answer_in(priv->buf, priv->len, 60, root, ifaddr);
+	} else if(!strcmp(root, addr_name)) {
+		mdns_packet_add_answer_in_ptr(priv->buf, priv->len, 60, root, host_name);
+	}
+}
+
+/*------------------------------------------------------------------------*/
+
 int main(int narg, char** argv)
 {
-	struct sockaddr_in recvaddr;
-	socklen_t recvaddr_len;
-	struct in_addr ifaddr;
-	uint8_t buf[1500];
+	struct sockaddr_in sa;
+	socklen_t sa_len;
+	uint8_t bufin[1500];
+	uint8_t bufout[1500];
+	mdns_ctx_t ctx = {.buf = bufout, .len = sizeof(bufout),};
 	int sockfd;
 	int res;
 
@@ -94,25 +122,11 @@ int main(int narg, char** argv)
 		return(exit_code);
 	}
 
-	memset(&recvaddr, 0, sizeof(recvaddr));
-	recvaddr.sin_family = AF_INET;
-	recvaddr.sin_port = htons(5353);
-	recvaddr.sin_addr = __MDNS_MC_GROUP;
-
-	mdns_packet_init(&buf, sizeof(buf));
-	mdns_packet_add_query_in(buf, sizeof(buf), MDNS_RECORD_PTR, MDNS_QUERY_SERVICE_DISCOVERY);
-	res = sendto(sockfd, buf, mdns_packet_size(buf, sizeof(buf)), 0, (struct sockaddr*)&recvaddr, sizeof(recvaddr));
-
-	printf("(out) to %s:%d, length: %d\n",
-		inet_ntoa(recvaddr.sin_addr), ntohs(recvaddr.sin_port), res);
-
-	mdns_packet_dump(buf, res); fflush(stdout);
-
 	do {
-		recvaddr_len = sizeof(recvaddr);
+		sa_len = sizeof(sa);
 
 		/* receive packet */
-		if((res = recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr*)&recvaddr, &recvaddr_len)) == -1) {
+		if((res = recvfrom(sockfd, bufin, sizeof(bufin), 0, (struct sockaddr*)&sa, &sa_len)) == -1) {
 			if(errno == EAGAIN)
 				continue;
 
@@ -120,10 +134,26 @@ int main(int narg, char** argv)
 			goto error;
 		}
 
+		/* process incoming packet */
 		printf("(in) from %s:%d, length: %d\n",
-			inet_ntoa(recvaddr.sin_addr), ntohs(recvaddr.sin_port), res);
+			inet_ntoa(sa.sin_addr), ntohs(sa.sin_port), res);
+		mdns_packet_dump(bufin, res); fflush(stdout);
 
-		mdns_packet_dump(buf, res); fflush(stdout);
+		mdns_packet_init(&bufout, sizeof(bufout));
+		mdns_packet_process(bufin, res, &handlers, &ctx);
+
+		/* prepare sending */
+		memset(&sa, 0, sizeof(sa));
+		sa.sin_family = AF_INET;
+		sa.sin_port = htons(__MDNS_PORT);
+		sa.sin_addr = __MDNS_MC_GROUP;
+
+		res = sendto(sockfd, bufout, mdns_packet_size(bufout, sizeof(bufout)), 0, (struct sockaddr*)&sa, sizeof(sa));
+
+		/* print sended packet */
+		printf("(out) to %s:%d, length: %d\n",
+			inet_ntoa(sa.sin_addr), ntohs(sa.sin_port), res);
+		mdns_packet_dump(bufout, res); fflush(stdout);
 	} while(!terminate);
 
 	exit_code = 0;
