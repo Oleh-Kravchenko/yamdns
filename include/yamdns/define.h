@@ -68,9 +68,9 @@ typedef enum mdns_class_type {
 /*------------------------------------------------------------------------*/
 
 enum {
-	MDNS_FLAG_RESPONSE = 0,
-	MDNS_FLAG_QUERY    = 0x8000,
-	MDNS_FLAG_AUTH     = 0x0400,
+	MDNS_FLAG_QUERY  = 0,
+	MDNS_FLAG_ANSWER = 0x8000,
+	MDNS_FLAG_AUTH   = 0x0400,
 };
 
 #endif /* __YAMDNS_DEFINE_H */

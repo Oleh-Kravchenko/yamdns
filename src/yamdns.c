@@ -523,6 +523,7 @@ int mdns_packet_add_query_in(void* buf, size_t len, uint16_t q_type, const char*
 	len -= sizeof(*query_hdr);
 
 	/* increment query count */
+	hdr->flags = htons(ntohs(hdr->flags) | MDNS_FLAG_QUERY);
 	hdr->qd_cnt = htons(ntohs(hdr->qd_cnt) + 1);
 
 	return(0);
@@ -572,6 +573,7 @@ int mdns_packet_add_answer_in(void* buf, size_t len, uint32_t ttl, const char* r
 	len -= sizeof(in);
 
 	/* increment answer count */
+	hdr->flags = htons(ntohs(hdr->flags) | MDNS_FLAG_ANSWER);
 	hdr->an_cnt = htons(ntohs(hdr->an_cnt) + 1);
 
 	return(0);
@@ -617,6 +619,7 @@ int mdns_packet_add_answer_in_ptr(void* buf, size_t len, uint32_t ttl, const cha
 	}
 
 	/* increment answer count */
+	hdr->flags = htons(ntohs(hdr->flags) | MDNS_FLAG_ANSWER);
 	hdr->an_cnt = htons(ntohs(hdr->an_cnt) + 1);
 
 	return(0);
@@ -662,6 +665,7 @@ int mdns_packet_add_answer_in_text(void* buf, size_t len, uint32_t ttl, const ch
 	}
 
 	/* increment answer count */
+	hdr->flags = htons(ntohs(hdr->flags) | MDNS_FLAG_ANSWER);
 	hdr->an_cnt = htons(ntohs(hdr->an_cnt) + 1);
 
 	return(0);
@@ -716,6 +720,7 @@ int mdns_packet_add_answer_in_srv(void* buf, size_t len, uint32_t ttl, const cha
 	}
 
 	/* increment answer count */
+	hdr->flags = htons(ntohs(hdr->flags) | MDNS_FLAG_ANSWER);
 	hdr->an_cnt = htons(ntohs(hdr->an_cnt) + 1);
 
 	return(0);
