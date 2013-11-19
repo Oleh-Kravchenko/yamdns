@@ -97,22 +97,22 @@ typedef struct mdns_record_srv {
 /*------------------------------------------------------------------------*/
 
 /** type of query handler */
-typedef void (*mdns_query_handler)(const mdns_query_hdr_t*, const char*);
+typedef void (*mdns_query_handler)(void* ctx, const mdns_query_hdr_t*, const char*);
 
 /** type of answer handler for type A */
-typedef void (*mdns_answer_handler_a)(const mdns_answer_hdr_t*, const char*, struct in_addr*);
+typedef void (*mdns_answer_handler_a)(void* ctx, const mdns_answer_hdr_t*, const char*, struct in_addr*);
 
 /** type of answer handler for type PTR */
-typedef void (*mdns_answer_handler_ptr)(const mdns_answer_hdr_t*, const char*, const char*);
+typedef void (*mdns_answer_handler_ptr)(void* ctx, const mdns_answer_hdr_t*, const char*, const char*);
 
 /** type of answer handler for type TEXT */
-typedef void (*mdns_answer_handler_text)(const mdns_answer_hdr_t*, const char*, const char*);
+typedef void (*mdns_answer_handler_text)(void* ctx, const mdns_answer_hdr_t*, const char*, const char*);
 
 /** type of answer handler for type SRV */
-typedef void (*mdns_answer_handler_srv)(const mdns_answer_hdr_t*, const char*, mdns_record_srv_t*, const char*);
+typedef void (*mdns_answer_handler_srv)(void* ctx, const mdns_answer_hdr_t*, const char*, mdns_record_srv_t*, const char*);
 
 /** type of answer handler for unknown types */
-typedef void (*mdns_answer_handler_raw)(const mdns_answer_hdr_t*, const char*, const void*, size_t);
+typedef void (*mdns_answer_handler_raw)(void* ctx, const mdns_answer_hdr_t*, const char*, const void*, size_t);
 
 /*------------------------------------------------------------------------*/
 

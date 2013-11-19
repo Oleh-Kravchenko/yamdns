@@ -202,7 +202,7 @@ int mdns_packet_init(void* buf, size_t len)
 
 /*------------------------------------------------------------------------*/
 
-size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handlers)
+size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handlers, void* ctx)
 {
 	const mdns_hdr_t* hdr;
 	const mdns_query_hdr_t* query_hdr;
@@ -252,7 +252,7 @@ size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handler
 
 			/* call query handler */
 			if(handlers->q) {
-				handlers->q(query_hdr, root);
+				handlers->q(ctx, query_hdr, root);
 			}
 		}
 	}
@@ -291,7 +291,7 @@ size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handler
 
 					/* call a type handler */
 					if(handlers->a) {
-						handlers->a(answer_hdr, root, (struct in_addr*)pos);
+						handlers->a(ctx, answer_hdr, root, (struct in_addr*)pos);
 					}
 
 					break;
@@ -309,7 +309,7 @@ size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handler
 
 					/* call text handler */
 					if(handlers->text) {
-						handlers->text(answer_hdr, root, text);
+						handlers->text(ctx, answer_hdr, root, text);
 					}
 
 					break;
@@ -327,7 +327,7 @@ size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handler
 
 					/* call pointer handler */
 					if(handlers->ptr) {
-						handlers->ptr(answer_hdr, root, target);
+						handlers->ptr(ctx, answer_hdr, root, target);
 					}
 
 					break;
@@ -353,7 +353,7 @@ size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handler
 
 					/* call service handler */
 					if(handlers->srv) {
-						handlers->srv(answer_hdr, root, srv, service);
+						handlers->srv(ctx, answer_hdr, root, srv, service);
 					}
 
 					break;
@@ -364,7 +364,7 @@ size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handler
 
 					/* call raw handler */
 					if(handlers->raw) {
-						handlers->raw(answer_hdr, root, pos, ntohs(answer_hdr->rd_len));
+						handlers->raw(ctx, answer_hdr, root, pos, ntohs(answer_hdr->rd_len));
 					}
 
 					break;
@@ -386,7 +386,7 @@ err:
 
 /*------------------------------------------------------------------------*/
 
-static void mdns_dump_query_handler(const mdns_query_hdr_t* h, const char* root)
+static void mdns_dump_query_handler(void* ctx, const mdns_query_hdr_t* h, const char* root)
 {
 	/* display query header */
 	printf("[Q] class: 0x%04x type: %s (0x%04x) [%s]\n",
@@ -403,7 +403,7 @@ static void mdns_dump_answer(const mdns_answer_hdr_t* h, const char* root)
 	);
 }
 
-static void mdns_dump_answer_handler_a(const mdns_answer_hdr_t* h, const char* root, struct in_addr* in)
+static void mdns_dump_answer_handler_a(void* ctx, const mdns_answer_hdr_t* h, const char* root, struct in_addr* in)
 {
 	mdns_dump_answer(h, root);
 
@@ -411,7 +411,7 @@ static void mdns_dump_answer_handler_a(const mdns_answer_hdr_t* h, const char* r
 	printf("%s]\n", inet_ntoa(*in));
 }
 
-static void mdns_dump_answer_handler_ptr_text(const mdns_answer_hdr_t* h, const char* root, const char* ptr)
+static void mdns_dump_answer_handler_ptr_text(void* ctx, const mdns_answer_hdr_t* h, const char* root, const char* ptr)
 {
 	mdns_dump_answer(h, root);
 
@@ -419,7 +419,7 @@ static void mdns_dump_answer_handler_ptr_text(const mdns_answer_hdr_t* h, const 
 	printf("%s]\n", ptr);
 }
 
-static void mdns_dump_answer_handler_srv(const mdns_answer_hdr_t* h, const char* root, mdns_record_srv_t* srv, const char* target)
+static void mdns_dump_answer_handler_srv(void* ctx, const mdns_answer_hdr_t* h, const char* root, mdns_record_srv_t* srv, const char* target)
 {
 	mdns_dump_answer(h, root);
 
@@ -429,7 +429,7 @@ static void mdns_dump_answer_handler_srv(const mdns_answer_hdr_t* h, const char*
 	);
 }
 
-static void mdns_dump_answer_handler_raw(const mdns_answer_hdr_t* h, const char* root, const void* buf, size_t len)
+static void mdns_dump_answer_handler_raw(void* ctx, const mdns_answer_hdr_t* h, const char* root, const void* buf, size_t len)
 {
 	mdns_dump_answer(h, root);
 
@@ -466,7 +466,7 @@ void mdns_packet_dump(const void* buf, size_t len)
 	printf(" add_rr: 0x%04x\n", ntohs(hdr->ar_cnt));
 
 	/* process mdns packet */
-	ret = mdns_packet_process(buf, len, &handlers);
+	ret = mdns_packet_process(buf, len, &handlers, NULL);
 	if(ret != len) {
 		goto err;
 	}
@@ -488,7 +488,7 @@ size_t mdns_packet_size(const void* buf, size_t len)
 	mdns_handlers_t handlers = {0};
 
 	/* calculate packet size by processing */
-	return(mdns_packet_process(buf, len, &handlers));
+	return(mdns_packet_process(buf, len, &handlers, NULL));
 }
 
 /*------------------------------------------------------------------------*/

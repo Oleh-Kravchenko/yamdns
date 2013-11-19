@@ -36,9 +36,10 @@ int mdns_packet_init(void* buf, size_t len);
  * @param [in] buf buffer with packet
  * @param [in] len size of buffer or packet
  * @param [in] handlers callback handlers
+ * @param [in] ctx context for callbacks
  * @return size of successfully parsed data
  */
-size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handlers);
+size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handlers, void* ctx);
 
 /**
  * @brief print dump of mDNS packet
