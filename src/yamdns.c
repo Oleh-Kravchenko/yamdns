@@ -202,6 +202,20 @@ int mdns_packet_init(void* buf, size_t len)
 
 /*------------------------------------------------------------------------*/
 
+int mdns_packet_is_valid(void* buf, size_t len)
+{
+	mdns_hdr_t* hdr = buf;
+
+	if(len <= sizeof(*hdr)) {
+		return(-1);
+	}
+
+	/* simple check if packet ready for transfer */
+	return(hdr->qd_cnt || hdr->an_cnt || hdr->ns_cnt || hdr->ar_cnt);
+}
+
+/*------------------------------------------------------------------------*/
+
 size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handlers, void* ctx)
 {
 	const mdns_hdr_t* hdr;

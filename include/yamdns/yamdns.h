@@ -31,6 +31,15 @@
  */
 int mdns_packet_init(void* buf, size_t len);
 
+
+/**
+ * @brief check packet for transfering
+ * @param [in] buf buffer for data
+ * @param [in] len length of buf
+ * @return zero, if packet ready for transfering
+ */
+int mdns_packet_is_valid(void* buf, size_t len);
+
 /**
  * @brief process mDNS packet and call handlers
  * @param [in] buf buffer with packet

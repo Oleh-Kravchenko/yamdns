@@ -141,12 +141,16 @@ int main(int narg, char** argv)
 
 		mdns_packet_init(&bufout, sizeof(bufout));
 		mdns_packet_process(bufin, res, &handlers, &ctx);
-		res = mdns_send(sockfd, bufout, mdns_packet_size(bufout, sizeof(bufout)));
 
-		/* print sended packet */
-		printf("(out) to %s:%d, length: %d\n",
-			inet_ntoa(sa.sin_addr), ntohs(sa.sin_port), res);
-		mdns_packet_dump(bufout, res); fflush(stdout);
+		/* if we have answers, send it */
+		if(mdns_packet_is_valid(bufout, sizeof(bufout))) {
+			res = mdns_send(sockfd, bufout, mdns_packet_size(bufout, sizeof(bufout)));
+
+			/* print sended packet */
+			printf("(out) to %s:%d, length: %d\n",
+				inet_ntoa(sa.sin_addr), ntohs(sa.sin_port), res);
+			mdns_packet_dump(bufout, res); fflush(stdout);
+		}
 	} while(!terminate);
 
 	exit_code = 0;
