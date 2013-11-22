@@ -499,7 +499,9 @@ err:
 
 size_t mdns_packet_size(const void* buf, size_t len)
 {
-	mdns_handlers_t handlers = {0};
+	mdns_handlers_t handlers;
+
+	memset(&handlers, 0, sizeof(handlers));
 
 	/* calculate packet size by processing */
 	return(mdns_packet_process(buf, len, &handlers, NULL));
