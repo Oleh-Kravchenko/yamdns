@@ -28,7 +28,7 @@
 
 /*------------------------------------------------------------------------*/
 
-static const char* mdns_str_type(mdns_record_t rec)
+const char* mdns_str_type(mdns_record_t rec)
 {
 	switch(rec)
 	{

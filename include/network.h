@@ -44,7 +44,7 @@ int mdns_close(struct in_addr ifaddr, int sockfd);
  * @param [in] sockfd socket desctriptor
  * @param [in] buf pointer to packet
  * @param [in] len length of packet
- * @return int
+ * @return the same as sendto()
  */
 int mdns_send(int sockfd, void* buf, size_t len);
 

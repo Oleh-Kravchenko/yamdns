@@ -58,6 +58,13 @@ size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handler
 void mdns_packet_dump(const void* buf, size_t len);
 
 /**
+ * @brief return text description of mdns record type
+ * @param rec mdns record type
+ * @return text string
+ */
+const char* mdns_str_type(mdns_record_t rec);
+
+/**
  * @brief calculate mDNS packet size
  * @param [in] buf buffer with packet
  * @param [in] len size of buffer or packet

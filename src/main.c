@@ -104,10 +104,11 @@ int main(int narg, char** argv)
 	}
 
 	/* prepare ip address resolution name */
-	snprintf(host_name, sizeof(host_name), "%s.local.", hostname);
+	snprintf(host_name, sizeof(host_name), "%s.%s", hostname, MDNS_DOMAIN);
 	snprintf(addr_name, sizeof(addr_name),
-		"%s.in-addr.arpa.",
-		inet_ntoa((struct in_addr){__builtin_bswap32(ifaddr.s_addr)})
+		"%s.%s",
+		inet_ntoa((struct in_addr){__builtin_bswap32(ifaddr.s_addr)}),
+		MDNS_QUERY_RESOLVE_ADDRESS
 	);
 
 	/* register signal handlers */
