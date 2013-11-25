@@ -182,7 +182,7 @@ static void mdns_packet_current(void** buf, size_t* len)
 	/* calculate end position in packet */
 	cur = mdns_packet_size(*buf, *len);
 	*buf = (void*)((uintptr_t)*buf + cur);
-	len -= cur;
+	*len -= cur;
 }
 
 /*------------------------------------------------------------------------*/
