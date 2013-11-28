@@ -66,7 +66,7 @@ int mdns_format_address_name(char* s, size_t len, struct in_addr in)
 		return(-1);
 	}
 
-	strncat(s, "." MDNS_QUERY_RESOLVE_ADDRESS, len - 1);
+	strncat(s, "." MDNS_QUERY_RESOLVE_ADDRESS, len - strlen(s) - 1);
 	s[len - 1] = 0;
 
 	return(0);
@@ -110,11 +110,11 @@ static const void* mdns_name_unpack(const uint8_t* buf, const uint8_t* pos, cons
 		label[*cur] = 0;
 
 		/* add label */
-		strncat(name, label, len - 1);
+		strncat(name, label, len - strlen(name) - 1);
 		name[len - 1] = 0;
 
 		/* dot */
-		strncat(name, ".", len - 1);
+		strncat(name, ".", len - strlen(name) - 1);
 		name[len - 1] = 0;
 
 		/* next chunk name */
