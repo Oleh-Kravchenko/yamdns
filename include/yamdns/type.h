@@ -90,8 +90,8 @@ typedef struct mdns_record_srv {
 	/** port of service */
 	uint16_t port;
 
-	/** service name and pointer to service owner */
-	char name[];
+	/** hostname owner of service */
+	char hostname[];
 } mdns_record_srv_t;
 
 /*------------------------------------------------------------------------*/

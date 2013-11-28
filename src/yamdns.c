@@ -28,7 +28,7 @@
 
 /*------------------------------------------------------------------------*/
 
-const char* mdns_str_type(mdns_record_t rec)
+const char* mdns_str_type(mdns_record_type_t rec)
 {
 	switch(rec)
 	{
@@ -50,6 +50,26 @@ const char* mdns_str_type(mdns_record_t rec)
 		default:
 			return("Unknown");
 	}
+}
+
+/*------------------------------------------------------------------------*/
+
+int mdns_format_address_name(char* s, size_t len, struct in_addr in)
+{
+	if(len < MDNS_MAX_ADDRESS_NAME) {
+		return(-1);
+	}
+
+	/* format address query */
+	in.s_addr = __builtin_bswap32(in.s_addr);
+	if(!inet_ntop(AF_INET, &in, s, len)) {
+		return(-1);
+	}
+
+	strncat(s, "." MDNS_QUERY_RESOLVE_ADDRESS, len - 1);
+	s[len - 1] = 0;
+
+	return(0);
 }
 
 /*------------------------------------------------------------------------*/
@@ -216,7 +236,7 @@ int mdns_packet_is_valid(void* buf, size_t len)
 
 /*------------------------------------------------------------------------*/
 
-size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handlers, void* ctx)
+size_t mdns_packet_process(const void* buf, size_t len, const mdns_handlers_t* handlers, void* ctx)
 {
 	const mdns_hdr_t* hdr;
 	const mdns_query_hdr_t* query_hdr;
@@ -358,7 +378,7 @@ size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handler
 						goto err;
 					}
 
-					cur = mdns_name_unpack(buf, (void*)&srv->name, pos + ntohs(answer_hdr->rd_len), service, sizeof(service));
+					cur = mdns_name_unpack(buf, (void*)&srv->hostname, pos + ntohs(answer_hdr->rd_len), service, sizeof(service));
 
 					/* check for range */
 					if(!cur || cur > end) {

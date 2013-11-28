@@ -48,7 +48,7 @@ int mdns_packet_is_valid(void* buf, size_t len);
  * @param [in] ctx context for callbacks
  * @return size of successfully parsed data
  */
-size_t mdns_packet_process(const void* buf, size_t len, mdns_handlers_t* handlers, void* ctx);
+size_t mdns_packet_process(const void* buf, size_t len, const mdns_handlers_t* handlers, void* ctx);
 
 /**
  * @brief print dump of mDNS packet
@@ -62,7 +62,7 @@ void mdns_packet_dump(const void* buf, size_t len);
  * @param rec mdns record type
  * @return text string
  */
-const char* mdns_str_type(mdns_record_t rec);
+const char* mdns_str_type(mdns_record_type_t rec);
 
 /**
  * @brief calculate mDNS packet size
@@ -128,5 +128,17 @@ int mdns_packet_add_answer_in_text(void* buf, size_t len, uint32_t ttl, const ch
  * @return zero, if successful
  */
 int mdns_packet_add_answer_in_srv(void* buf, size_t len, uint32_t ttl, const char* root, uint16_t prio, uint16_t weight, uint16_t port, const char* name);
+
+/**
+ * @brief format address name for reverse query
+ * @param [in,out] s pointer to string buffer
+ * @param [in] len length of s
+ * @param [in] in address of AF_INET family
+ * @return zero, if successful
+ *
+ * Example:
+ * 192.168.100.200 -> "200.100.168.192.in-addr.arpa."
+ */
+int mdns_format_address_name(char* s, size_t len, struct in_addr in);
 
 #endif /* __YAMDNS_H */

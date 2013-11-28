@@ -40,6 +40,9 @@
 /** max size label of name */
 #define MDNS_MAX_LABEL_NAME 0x40
 
+/** max size of address name, example "192.168.100.200.in-addr.arpa." */
+#define MDNS_MAX_ADDRESS_NAME 30
+
 /** service discovery query */
 #define MDNS_QUERY_SERVICE_DISCOVERY "_services._dns-sd._udp.local."
 
@@ -52,13 +55,13 @@
 /*------------------------------------------------------------------------*/
 
 /** DNS record types */
-typedef enum mdns_record {
+typedef enum mdns_record_type {
 	MDNS_RECORD_A     = 0x0001,
 	MDNS_RECORD_PTR   = 0x000c,
 	MDNS_RECORD_TEXT  = 0x0010,
 	MDNS_RECORD_AAAA  = 0x001c,
 	MDNS_RECORD_SRV   = 0x0021,
-} mdns_record_t;
+} mdns_record_type_t;
 
 /*------------------------------------------------------------------------*/
 
