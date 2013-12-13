@@ -59,7 +59,6 @@ typedef struct mdns_query_hdr {
 	uint16_t q_class;
 } __attribute__((__packed__)) mdns_query_hdr_t;
 
-
 /*------------------------------------------------------------------------*/
 
 /** header of answer */
@@ -92,7 +91,7 @@ typedef struct mdns_record_srv {
 
 	/** hostname owner of service */
 	char hostname[];
-} mdns_record_srv_t;
+} __attribute__((__packed__)) mdns_record_srv_t;
 
 /*------------------------------------------------------------------------*/
 
