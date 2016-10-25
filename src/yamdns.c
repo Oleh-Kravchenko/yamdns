@@ -431,7 +431,7 @@ static void mdns_dump_query_handler(void* ctx, const mdns_query_hdr_t* h, const 
 static void mdns_dump_answer(const mdns_answer_hdr_t* h, const char* root)
 {
 	/* display answer header */
-	printf("[A] class: 0x%04x type: %s (0x%04x) ttl: %d len: %d [%s] [",
+	printf("[A] class: 0x%04x type: %s (0x%04x) ttl: %u len: %u [%s] [",
 		ntohs(h->a_class), mdns_str_type(ntohs(h->a_type)),
 		ntohs(h->a_type), ntohl(h->a_ttl), ntohs(h->rd_len), root
 	);
