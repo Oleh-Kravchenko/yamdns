@@ -72,7 +72,7 @@ void hexdump8(const void* buf, size_t len)
 				putchar('\n');
 			}
 
-			printf("%p |", data);
+			printf("%p |", (void*)data);
 		}
 
 		/* group by __HEXDUMP8_GROUP bytes */
